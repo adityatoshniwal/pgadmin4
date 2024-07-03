@@ -361,16 +361,12 @@ export class ResultSetUtils {
     }
   }
 
-  getMoreRows(all=false) {
-    let url = url_for('sqleditor.fetch', {
+  getWindowRows(fromRownum, toRownum) {
+    let url = url_for('sqleditor.fetch_window', {
       'trans_id': this.transId,
+      'from_rownum': fromRownum,
+      'to_rownum': toRownum,
     });
-    if(all) {
-      url = url_for('sqleditor.fetch_all', {
-        'trans_id': this.transId,
-        'fetch_all': 1,
-      });
-    }
     return this.api.get(url);
   }
 
@@ -765,7 +761,6 @@ export function ResultSet() {
   const [queryData, setQueryData] = useState(null);
   const [rows, setRows] = useState([]);
   const [columns, setColumns] = useState([]);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const api = getApiInstance();
   const rsu = React.useRef(new ResultSetUtils(api, queryToolCtx.params.trans_id, queryToolCtx.params.is_query_tool));
   const [dataChangeStore, dispatchDataChange] = React.useReducer(dataChangeReducer, {});
@@ -971,45 +966,44 @@ export function ResultSet() {
     eventBus.fireEvent(QUERY_TOOL_EVENTS.RESET_GRAPH_VISUALISER, columns);
   }, [columns]);
 
-  const fetchMoreRows = async (all=false, callback=undefined)=>{
-    if(queryData.has_more_rows) {
-      let res = [];
-      setIsLoadingMore(true);
-      try {
-        res = await rsu.current.getMoreRows(all);
-        const newRows = rsu.current.processRows(res.data.data.result, columns);
-        setRows((prevRows)=>[...prevRows, ...newRows]);
-        setQueryData((prev)=>({
-          ...prev,
-          has_more_rows: res.data.data.has_more_rows,
-          rows_fetched_to: res.data.data.rows_fetched_to!=0 ? res.data.data.rows_fetched_to : prev.rows_fetched_to,
-        }));
-      } catch (e) {
-        eventBus.fireEvent(QUERY_TOOL_EVENTS.HANDLE_API_ERROR,
-          e,
-          {
-            connectionLostCallback: ()=>{
-              eventBus.fireEvent(QUERY_TOOL_EVENTS.EXECUTION_START, rsu.current.query, null, false, true);
-            },
-            checkTransaction: true,
-          }
-        );
-      } finally {
-        setIsLoadingMore(false);
-      }
+  const fetchWindow = async (fromRownum, toRownum, callback)=>{
+    let res = [];
+    setLoaderText(gettext('Fetching rows...'));
+    try {
+      res = await rsu.current.getWindowRows(fromRownum, toRownum);
+      const newRows = rsu.current.processRows(res.data.data.result, columns);
+      setRows((prevRows)=>[...newRows]);
+      setQueryData((prev)=>({
+        ...prev,
+        pagination: res.data.data.pagination,
+        rows_fetched_to: res.data.data.rows_fetched_to!=0 ? res.data.data.rows_fetched_to : prev.rows_fetched_to,
+      }));
+    } catch (e) {
+      eventBus.fireEvent(QUERY_TOOL_EVENTS.HANDLE_API_ERROR,
+        e,
+        {
+          connectionLostCallback: ()=>{
+            eventBus.fireEvent(QUERY_TOOL_EVENTS.EXECUTION_START, rsu.current.query, null, false, true);
+          },
+          checkTransaction: true,
+        }
+      );
+    } finally {
+      setLoaderText('');
     }
     callback?.();
   };
-  useEffect(()=>{
-    eventBus.registerListener(QUERY_TOOL_EVENTS.FETCH_MORE_ROWS, fetchMoreRows);
-    return ()=>{
-      eventBus.deregisterListener(QUERY_TOOL_EVENTS.FETCH_MORE_ROWS, fetchMoreRows);
-    };
-  }, [queryData?.has_more_rows, columns]);
 
   useEffect(()=>{
-    eventBus.fireEvent(QUERY_TOOL_EVENTS.ROWS_FETCHED, queryData?.rows_fetched_to, queryData?.rows_affected);
-  }, [queryData?.rows_fetched_to, queryData?.rows_affected]);
+    eventBus.registerListener(QUERY_TOOL_EVENTS.FETCH_WINDOW, fetchWindow);
+    return ()=>{
+      eventBus.deregisterListener(QUERY_TOOL_EVENTS.FETCH_WINDOW, fetchWindow);
+    };
+  }, [columns]);
+
+  useEffect(()=>{
+    eventBus.fireEvent(QUERY_TOOL_EVENTS.TOTAL_ROWS_COUNT, queryData?.rows_affected);
+  }, [queryData?.rows_affected]);
 
   const warnSaveDataClose = ()=>{
     // No changes.
@@ -1257,7 +1251,7 @@ export function ResultSet() {
         selectedRowsSorted.sort();
         insPosn = _.findIndex(rows, (r)=>rowKeyGetter(r)==selectedRowsSorted[selectedRowsSorted.length-1])+1;
       }
-      let byteaCellSelection = columns.filter(o=>o.type=='bytea'); 
+      let byteaCellSelection = columns.filter(o=>o.type=='bytea');
       if (byteaCellSelection.length>0) {
         _rows = _rows.map(x=>{
           byteaCellSelection.forEach(r=>{
@@ -1312,20 +1306,6 @@ export function ResultSet() {
     eventBus.registerListener(QUERY_TOOL_EVENTS.TRIGGER_RENDER_GEOMETRIES, renderGeometries);
     return ()=>eventBus.deregisterListener(QUERY_TOOL_EVENTS.TRIGGER_RENDER_GEOMETRIES, renderGeometries);
   }, [rows, columns, selectedRows.size, selectedColumns.size]);
-
-  const handleScroll = (e) => {
-    // Set scroll current position of RestSet.
-    if (!_.isNull(e.currentTarget) && isResettingScroll.current) {
-      lastScrollRef.current = {
-        ref: { ...e },
-        top: e.currentTarget.scrollTop,
-        left: e.currentTarget.scrollLeft
-      };
-    }
-
-    if (isLoadingMore || !rsu.current.isAtBottom(e)) return;
-    eventBus.fireEvent(QUERY_TOOL_EVENTS.FETCH_MORE_ROWS);
-  };
 
   const triggerResetScroll = () => {
     // Reset the scroll position to previously saved location.
@@ -1403,17 +1383,17 @@ export function ResultSet() {
   return (
     <StyledBox ref={containerRef} tabIndex="0">
       <Loader message={loaderText} />
-      <Loader data-label="loader-more-rows" message={isLoadingMore ? gettext('Loading more rows...') : null} style={{top: 'unset', right: 'unset', padding: '0.5rem 1rem'}}/>
       {!queryData &&
         <EmptyPanelMessage text={gettext('No data output. Execute a query to get output.')}/>
       }
       {queryData && <>
-        <ResultSetToolbar containerRef={containerRef} query={dataOutputQuery} canEdit={queryData.can_edit} totalRowCount={queryData?.rows_affected}/>
+        <ResultSetToolbar containerRef={containerRef} query={dataOutputQuery} canEdit={queryData.can_edit} totalRowCount={queryData?.rows_affected} pagination={queryData?.pagination}/>
         <Box flexGrow="1" minHeight="0">
           <QueryToolDataGrid
             columns={columns}
             rows={rows}
             totalRowCount={queryData?.rows_affected}
+            startRowNum={queryData?.pagination?.rows_from}
             columnWidthBy={
               queryToolCtx.preferences?.sqleditor?.column_data_auto_resize == 'by_data' ?
                 queryToolCtx.preferences.sqleditor.column_data_max_width :
@@ -1421,7 +1401,6 @@ export function ResultSet() {
             }
             key={rowsResetKey}
             rowKeyGetter={rowKeyGetter}
-            onScroll={handleScroll}
             onRowsChange={onRowsChange}
             dataChangeStore={dataChangeStore}
             selectedRows={selectedRows}

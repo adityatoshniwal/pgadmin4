@@ -15,6 +15,7 @@ import secrets
 from urllib.parse import unquote
 from threading import Lock
 import threading
+import math
 
 import json
 from config import PG_DEFAULT_DRIVER, ALLOW_SAVE_PASSWORD, SHARED_STORAGE
@@ -107,6 +108,7 @@ class SqlEditorModule(PgAdminModule):
             'sqleditor.query_tool_start',
             'sqleditor.poll',
             'sqleditor.fetch',
+            'sqleditor.fetch_window',
             'sqleditor.fetch_all',
             'sqleditor.fetch_all_from_start',
             'sqleditor.save',
@@ -928,8 +930,8 @@ def poll(trans_id):
     additional_messages = None
     notifies = None
     data_obj = {}
-    on_demand_record_count = Preferences.module(MODULE_NAME).\
-        preference('on_demand_record_count').get()
+    data_result_page_size = Preferences.module(MODULE_NAME).\
+        preference('data_result_page_size').get()
     # Check the transaction and connection status
     status, error_msg, conn, trans_obj, session_obj = \
         check_transaction_status(trans_id)
@@ -996,7 +998,7 @@ def poll(trans_id):
             status = 'Success'
             rows_affected = conn.rows_affected()
 
-            st, result = conn.async_fetchmany_2darray(on_demand_record_count)
+            st, result = conn.async_fetchmany_2darray(data_result_page_size)
 
             # There may be additional messages even if result is present
             # eg: Function can provide result as well as RAISE messages
@@ -1073,7 +1075,7 @@ def poll(trans_id):
                 # means nothing to fetch
                 if result and rows_affected > -1:
                     res_len = len(result)
-                    if res_len == on_demand_record_count:
+                    if res_len == data_result_page_size:
                         has_more_rows = True
 
                     if res_len > 0:
@@ -1118,6 +1120,21 @@ def poll(trans_id):
     data_obj['db_id'] = trans_obj.did \
         if trans_obj is not None and hasattr(trans_obj, 'did') else 0
 
+    page_size = rows_fetched_to - rows_fetched_from + 1
+    page_info = {
+        'page_size': page_size,
+        'page_count':  math.ceil(conn.total_rows/page_size),
+        'page_no': math.floor(rows_fetched_from/page_size)+1
+    }
+
+    pagination = {
+        'page_size': page_size,
+        'page_count':  math.ceil(conn.total_rows/page_size),
+        'page_no': math.floor(rows_fetched_from/page_size)+1,
+        'rows_from': rows_fetched_from,
+        'rows_to': rows_fetched_to
+    }
+
     return make_json_response(
         data={
             'status': status, 'result': result,
@@ -1135,6 +1152,7 @@ def poll(trans_id):
             'oids': oids,
             'transaction_status': transaction_status,
             'data_obj': data_obj,
+            'pagination' : pagination,
         }
     )
 
@@ -1196,6 +1214,60 @@ def fetch(trans_id, fetch_all=None):
         }
     )
 
+@blueprint.route(
+    '/fetch_window/<int:trans_id>/<int:from_rownum>/<int:to_rownum>', methods=["GET"], endpoint='fetch_window'
+)
+@pga_login_required
+def fetch_window(trans_id, from_rownum=0, to_rownum=0):
+    result = None
+    rows_fetched_from = 0
+    rows_fetched_to = 0
+
+    # Check the transaction and connection status
+    status, error_msg, conn, trans_obj, session_obj = \
+        check_transaction_status(trans_id)
+
+    if error_msg == ERROR_MSG_TRANS_ID_NOT_FOUND:
+        return make_json_response(success=0, errormsg=error_msg,
+                                  info='DATAGRID_TRANSACTION_REQUIRED',
+                                  status=404)
+
+    if status and conn is not None and session_obj is not None:
+        # rownums start from 0 but UI will ask from 1
+        status, result = conn.async_fetchmany_2darray(records=None, from_rownum=from_rownum-1, to_rownum=to_rownum-1)
+        if not status:
+            status = 'Error'
+        else:
+            status = 'Success'
+            res_len = len(result) if result else 0
+
+            if res_len:
+                rows_fetched_from = from_rownum
+                # trans_obj.update_fetched_row_cnt(rows_fetched_from + res_len)
+                rows_fetched_to = rows_fetched_from + res_len - 1
+                session_obj['command_obj'] = pickle.dumps(trans_obj, -1)
+                update_session_grid_transaction(trans_id, session_obj)
+    else:
+        status = 'NotConnected'
+        result = error_msg
+
+    page_size = to_rownum - from_rownum + 1
+    pagination = {
+        'page_size': page_size,
+        'page_count':  math.ceil(conn.total_rows/page_size),
+        'page_no': math.floor(rows_fetched_from/page_size)+1,
+        'rows_from': rows_fetched_from,
+        'rows_to': rows_fetched_to
+    }
+
+    return make_json_response(
+        data={
+            'status': status,
+            'result': result,
+            'pagination': pagination,
+            'row_count': conn.row_count,
+        }
+    )
 
 @blueprint.route(
     '/fetch_all_from_start/<int:trans_id>/<int:limit>', methods=["GET"],

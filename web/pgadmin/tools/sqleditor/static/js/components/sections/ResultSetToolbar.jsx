@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////////////
 import React, {useContext, useCallback, useEffect, useState} from 'react';
 import { styled } from '@mui/material/styles';
-import { Portal } from '@mui/material';
+import { Box, IconButton, Portal } from '@mui/material';
 import { PgButtonGroup, PgIconButton } from '../../../../../../static/js/components/Buttons';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import PlaylistAddRoundedIcon from '@mui/icons-material/PlaylistAddRounded';
@@ -17,6 +17,13 @@ import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
 import TimelineRoundedIcon from '@mui/icons-material/TimelineRounded';
 import { PasteIcon, SQLQueryIcon, SaveDataIcon } from '../../../../../../static/js/components/ExternalIcon';
 import GetAppRoundedIcon from '@mui/icons-material/GetAppRounded';
+import FastForwardRoundedIcon from '@mui/icons-material/FastForwardRounded';
+import FastRewindRoundedIcon from '@mui/icons-material/FastRewindRounded';
+import SkipNextRoundedIcon from '@mui/icons-material/SkipNextRounded';
+import SkipPreviousRoundedIcon from '@mui/icons-material/SkipPreviousRounded';
+import EditRoundedIcon from '@mui/icons-material/EditRounded';
+import EditOffRoundedIcon from '@mui/icons-material/EditOffRounded';
+
 import {QUERY_TOOL_EVENTS} from '../QueryToolConstants';
 import { QueryToolContext, QueryToolEventsContext } from '../QueryToolComponent';
 import { PgMenu, PgMenuItem } from '../../../../../../static/js/components/Menu';
@@ -26,14 +33,27 @@ import CopyData from '../QueryToolDataGrid/CopyData';
 import PropTypes from 'prop-types';
 import CodeMirror from '../../../../../../static/js/components/ReactCodeMirror';
 import { setEditorPosition } from '../QueryToolDataGrid/Editors';
+import { InputText } from '../../../../../../static/js/components/FormComponents';
 
 const StyledDiv = styled('div')(({theme})=>({
   padding: '2px',
   display: 'flex',
   alignItems: 'center',
-  gap: '4px',
+  flexWrap: 'wrap',
+  rowGap: '4px',
   backgroundColor: theme.otherVars.editorToolbarBg,
+  justifyContent: 'space-between',
   ...theme.mixins.panelBorder.bottom,
+
+  '& .PaginationInputs': {
+    display: "flex",
+    alignItems: "center",
+    gap: "4px",
+
+    '& .PaginationInputs-divider': {
+      ...theme.mixins.panelBorder.right,
+    }
+  }
 }));
 
 const StyledEditor = styled('div')(({theme})=>({
@@ -76,7 +96,93 @@ ShowDataOutputQueryPopup.propTypes = {
   query: PropTypes.string,
 };
 
-export function ResultSetToolbar({query,canEdit, totalRowCount}) {
+
+function PaginationInputs({pagination, totalRowCount}) {
+  const eventBus = useContext(QueryToolEventsContext);
+  const [editPageRange, setEditPageRange] = useState(false);
+  const [inputs, setInputs] = useState({
+    from: pagination.rows_from ?? 0,
+    to: pagination.rows_to ?? 0,
+    pageNo: pagination.page_no ?? 0,
+  });
+
+  const goToPage = (pageNo)=>{
+    const from = (pageNo-1) * pagination.page_size + 1;
+    const to = from + pagination.page_size - 1;
+    eventBus.fireEvent(QUERY_TOOL_EVENTS.FETCH_WINDOW, from, to);
+  }
+
+  const onInputChange = (key, value)=>{
+    setInputs((prev)=>({...prev, [key]: value}));
+  }
+
+  const onInputKeydown = (e)=>{
+    if(e.code === 'Enter') {
+      e.preventDefault();
+      eventBus.fireEvent(QUERY_TOOL_EVENTS.FETCH_WINDOW, inputs.from, inputs.to);
+    }
+  }
+
+  const onInputKeydownPageNo = (e)=>{
+    if(e.code === 'Enter') {
+      e.preventDefault();
+      goToPage(inputs.pageNo);
+    }
+  }
+
+  return (
+    <Box className='PaginationInputs'>
+      {editPageRange ?
+      <Box display="flex" gap="2px" alignItems="center">
+        <div>Showing:</div>
+        <InputText size="small"
+          controlProps={{maxLength: 7}}
+          style={{
+            maxWidth: '10ch'
+          }}
+          value={inputs.from}
+          onChange={(value)=>onInputChange('from', value)}
+          onKeyDown={onInputKeydown}
+        />
+        <div>to</div>
+        <InputText size="small"
+          controlProps={{maxLength: 7}}
+          style={{
+            maxWidth: '10ch'
+          }}
+          value={inputs.to}
+          onChange={(value)=>onInputChange('to', value)}
+          onKeyDown={onInputKeydown}
+        />
+      </Box> : <span>Showing: {inputs.from} to {inputs.to}</span>}
+      <PgIconButton size="xs"
+        title={editPageRange ? gettext('Cancel edit') : gettext('Edit page range')}
+        onClick={()=>setEditPageRange((prev)=>!prev)}
+        icon={editPageRange ? <EditOffRoundedIcon /> : <EditRoundedIcon />}
+      />
+      <div className='PaginationInputs-divider'>&nbsp;</div>
+      <span>Page No:</span>
+      <InputText size="small"
+        controlProps={{maxLength: 7}}
+        style={{
+          maxWidth: '10ch'
+        }}
+        value={inputs.pageNo}
+        onChange={(value)=>onInputChange('pageNo', value)}
+        onKeyDown={onInputKeydownPageNo}
+      />
+      <span> of {pagination.page_count}</span>
+      <div className='PaginationInputs-divider'>&nbsp;</div>
+      <PgButtonGroup size="small">
+        <PgIconButton title={gettext('First Page')} disabled={pagination.page_no == 1} onClick={()=>goToPage(1)} icon={<SkipPreviousRoundedIcon />}/>
+        <PgIconButton title={gettext('Previous Page')} disabled={pagination.page_no == 1} onClick={()=>goToPage(pagination.page_no-1)} icon={<FastRewindRoundedIcon />}/>
+        <PgIconButton title={gettext('Next Page')} disabled={pagination.page_no == pagination.page_count} onClick={()=>goToPage(pagination.page_no+1)} icon={<FastForwardRoundedIcon />}/>
+        <PgIconButton title={gettext('Last Page')} disabled={pagination.page_no == pagination.page_count} onClick={()=>goToPage(pagination.page_count)} icon={<SkipNextRoundedIcon />} />
+      </PgButtonGroup>
+    </Box>
+  )
+}
+export function ResultSetToolbar({query, canEdit, totalRowCount, pagination}) {
   const eventBus = useContext(QueryToolEventsContext);
   const queryToolCtx = useContext(QueryToolContext);
   const [dataOutputQueryBtn,setDataOutputQueryBtn] = useState(false);
@@ -208,45 +314,52 @@ export function ResultSetToolbar({query,canEdit, totalRowCount}) {
     },
   ], queryToolCtx.mainContainerRef);
 
+  console.log('pageInfo', pagination);
+
   return (
     <>
       <StyledDiv>
-        <PgButtonGroup size="small">
-          <PgIconButton title={gettext('Add row')} icon={<PlaylistAddRoundedIcon style={{height: 'unset'}}/>}
-            shortcut={queryToolPref.btn_add_row} disabled={!canEdit} onClick={addRow} />
-          <PgIconButton title={gettext('Copy')} icon={<FileCopyRoundedIcon />}
-            shortcut={FIXED_PREF.copy} disabled={buttonsDisabled['copy-rows']} onClick={copyData} />
-          <PgIconButton title={gettext('Copy options')} icon={<KeyboardArrowDownIcon />} splitButton
-            name="menu-copyheader" ref={copyMenuRef} onClick={openMenu} />
-          <PgIconButton title={gettext('Paste')} icon={<PasteIcon />}
-            shortcut={queryToolPref.btn_paste_row} disabled={!canEdit} onClick={pasteRows} />
-          <PgIconButton title={gettext('Paste options')} icon={<KeyboardArrowDownIcon />} splitButton
-            name="menu-pasteoptions" ref={pasetMenuRef} onClick={openMenu} />
-          <PgIconButton title={gettext('Delete')} icon={<DeleteRoundedIcon />}
-            shortcut={queryToolPref.btn_delete_row} disabled={buttonsDisabled['delete-rows'] || !canEdit} onClick={deleteRows} />
-        </PgButtonGroup>
-        <PgButtonGroup size="small">
-          <PgIconButton title={gettext('Save Data Changes')} icon={<SaveDataIcon />}
-            shortcut={queryToolPref.save_data} disabled={buttonsDisabled['save-data'] || !canEdit} onClick={saveData}/>
-        </PgButtonGroup>
-        <PgButtonGroup size="small">
-          <PgIconButton title={gettext('Save results to file')} icon={<GetAppRoundedIcon />}
-            onClick={downloadResult} shortcut={queryToolPref.download_results}
-            disabled={buttonsDisabled['save-result']} />
-        </PgButtonGroup>
-        <PgButtonGroup size="small">
-          <PgIconButton title={gettext('Graph Visualiser')} icon={<TimelineRoundedIcon />}
-            onClick={showGraphVisualiser} disabled={buttonsDisabled['save-result']} />
-        </PgButtonGroup>
-        {query &&
-        <>
+        <Box display="flex" alignItems="center" gap="4px">
           <PgButtonGroup size="small">
-            <PgIconButton title={gettext('SQL query of data')} icon={<SQLQueryIcon />}
-              onClick={()=>{setDataOutputQueryBtn(prev=>!prev);}} onBlur={()=>{setDataOutputQueryBtn(false);}} disabled={!query} id='sql-query'/>
+            <PgIconButton title={gettext('Add row')} icon={<PlaylistAddRoundedIcon style={{height: 'unset'}}/>}
+              shortcut={queryToolPref.btn_add_row} disabled={!canEdit} onClick={addRow} />
+            <PgIconButton title={gettext('Copy')} icon={<FileCopyRoundedIcon />}
+              shortcut={FIXED_PREF.copy} disabled={buttonsDisabled['copy-rows']} onClick={copyData} />
+            <PgIconButton title={gettext('Copy options')} icon={<KeyboardArrowDownIcon />} splitButton
+              name="menu-copyheader" ref={copyMenuRef} onClick={openMenu} />
+            <PgIconButton title={gettext('Paste')} icon={<PasteIcon />}
+              shortcut={queryToolPref.btn_paste_row} disabled={!canEdit} onClick={pasteRows} />
+            <PgIconButton title={gettext('Paste options')} icon={<KeyboardArrowDownIcon />} splitButton
+              name="menu-pasteoptions" ref={pasetMenuRef} onClick={openMenu} />
+            <PgIconButton title={gettext('Delete')} icon={<DeleteRoundedIcon />}
+              shortcut={queryToolPref.btn_delete_row} disabled={buttonsDisabled['delete-rows'] || !canEdit} onClick={deleteRows} />
           </PgButtonGroup>
-          { dataOutputQueryBtn && <ShowDataOutputQueryPopup query={query} />}
-        </>
-        }
+          <PgButtonGroup size="small">
+            <PgIconButton title={gettext('Save Data Changes')} icon={<SaveDataIcon />}
+              shortcut={queryToolPref.save_data} disabled={buttonsDisabled['save-data'] || !canEdit} onClick={saveData}/>
+          </PgButtonGroup>
+          <PgButtonGroup size="small">
+            <PgIconButton title={gettext('Save results to file')} icon={<GetAppRoundedIcon />}
+              onClick={downloadResult} shortcut={queryToolPref.download_results}
+              disabled={buttonsDisabled['save-result']} />
+          </PgButtonGroup>
+          <PgButtonGroup size="small">
+            <PgIconButton title={gettext('Graph Visualiser')} icon={<TimelineRoundedIcon />}
+              onClick={showGraphVisualiser} disabled={buttonsDisabled['save-result']} />
+          </PgButtonGroup>
+          {query &&
+          <>
+            <PgButtonGroup size="small">
+              <PgIconButton title={gettext('SQL query of data')} icon={<SQLQueryIcon />}
+                onClick={()=>{setDataOutputQueryBtn(prev=>!prev);}} onBlur={()=>{setDataOutputQueryBtn(false);}} disabled={!query} id='sql-query'/>
+            </PgButtonGroup>
+            { dataOutputQueryBtn && <ShowDataOutputQueryPopup query={query} />}
+          </>
+          }
+        </Box>
+        <Box>
+          <PaginationInputs key={JSON.stringify(pagination)} pagination={pagination} totalRowCount={totalRowCount} />
+        </Box>
       </StyledDiv>
       <PgMenu
         anchorRef={copyMenuRef}

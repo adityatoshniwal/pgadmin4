@@ -357,6 +357,16 @@ def register_query_tool_preferences(self):
                          'ON_DEMAND_RECORD_COUNT setting from config file.')
     )
 
+    self.data_result_page_size = self.preference.register(
+        'Results_grid', 'data_result_page_size',
+        gettext("Data result page size"), 'integer', ON_DEMAND_RECORD_COUNT,
+        min_val=10,
+        category_label=PREF_LABEL_RESULTS_GRID,
+        help_str=gettext('Specify the number of records to fetch in one batch. '
+                         'Changing this value will override '
+                         'ON_DEMAND_RECORD_COUNT setting from config file.')
+    )
+
     self.sql_font_size = self.preference.register(
         'Editor', 'sql_font_size',
         gettext("Font size"), 'numeric', '1',

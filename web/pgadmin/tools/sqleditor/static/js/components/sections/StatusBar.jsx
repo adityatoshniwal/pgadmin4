@@ -26,10 +26,10 @@ const StyledBox = styled(Box)(({theme}) => ({
   userSelect: 'text',
   '& .StatusBar-padding': {
     padding: '2px 12px',
-    '& .StatusBar-mlAuto': {
+    '&.StatusBar-mlAuto': {
       marginLeft: 'auto',
     },
-    '& .StatusBar-divider': {
+    '&.StatusBar-divider': {
       ...theme.mixins.panelBorder.right,
     },
   },
@@ -40,7 +40,7 @@ export function StatusBar() {
   const eventBus = useContext(QueryToolEventsContext);
   const [position, setPosition] = useState([1, 1]);
   const [lastTaskText, setLastTaskText] = useState(null);
-  const [rowsCount, setRowsCount] = useState([0, 0]);
+  const [rowsCount, setRowsCount] = useState(0);
   const [selectedRowsCount, setSelectedRowsCount] = useState(0);
   const [dataRowChangeCounts, setDataRowChangeCounts] = useState({
     isDirty: false,
@@ -67,8 +67,8 @@ export function StatusBar() {
       pauseTimer(endTime);
       setLastTaskText(taskText);
     });
-    eventBus.registerListener(QUERY_TOOL_EVENTS.ROWS_FETCHED, (fetched, total)=>{
-      setRowsCount([fetched||0, total||0]);
+    eventBus.registerListener(QUERY_TOOL_EVENTS.TOTAL_ROWS_COUNT, (total)=>{
+      setRowsCount(total);
     });
     eventBus.registerListener(QUERY_TOOL_EVENTS.SELECTED_ROWS_COLS_CELL_CHANGED, (rows)=>{
       setSelectedRowsCount(rows);
@@ -95,7 +95,7 @@ export function StatusBar() {
 
   return (
     <StyledBox>
-      <Box className='StatusBar-padding StatusBar-divider'>{gettext('Total rows: %s of %s', rowsCount[0], rowsCount[1])}</Box>
+      <Box className='StatusBar-padding StatusBar-divider'>{gettext('Total rows: %s', rowsCount)}</Box>
       {lastTaskText &&
         <Box className='StatusBar-padding StatusBar-divider'>{lastTaskText} {hours.toString().padStart(2, '0')}:{minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}.{msec.toString().padStart(3, '0')}</Box>
       }
