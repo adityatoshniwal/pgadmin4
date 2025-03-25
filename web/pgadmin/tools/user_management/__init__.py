@@ -33,10 +33,14 @@ from pgadmin.utils.validation_utils import validate_email
 from pgadmin.model import db, Role, User, UserPreference, Server, \
     ServerGroup, Process, Setting, roles_users, SharedServer
 from pgadmin.utils.paths import create_users_storage_directory
+from pgadmin.tools.user_management.PgPermissions import PgPermissions
+from sqlalchemy import func
 
 # set template path for sql scripts
 MODULE_NAME = 'user_management'
 server_info = {}
+
+permissions_obj = PgPermissions()
 
 
 class UserManagementModule(PgAdminModule):
@@ -67,7 +71,8 @@ class UserManagementModule(PgAdminModule):
             current_app.login_manager.login_view,
             'user_management.auth_sources', 'user_management.change_owner',
             'user_management.shared_servers', 'user_management.admin_users',
-            'user_management.save', 'user_management.save_id'
+            'user_management.save', 'user_management.save_id',
+            'user_management.all_permissions', 'user_management.save_permissions'
         ]
 
 
@@ -348,6 +353,65 @@ def admin_users(uid=None):
     )
 
 
+def create_role(data):
+    try:
+        validate_unique_role(data)
+        r = Role(name=data['username'],
+                 description=data['description'])
+        db.session.add(r)
+        db.session.commit()
+        return ajax_response(
+            status=200
+        )
+    except Exception as e:
+        db.session.rollback()
+        return internal_server_error(str(e))
+
+
+def update_role(rid, data):
+    try:
+        validate_unique_role(data)
+        r = Role.get(rid)
+
+        if not r:
+            return ajax_response(
+                response=_('Role not found'),
+                status=404
+            )
+
+        for key, value in data.items():
+            setattr(r, key, value)
+
+        db.session.commit()
+        return ajax_response(
+            status=200
+        )
+    except Exception as e:
+        db.session.rollback()
+        return internal_server_error(str(e))
+
+
+def delete_role(rid):
+    r = Role.get(rid)
+
+    if not r:
+        return ajax_response(
+            response=_('Role not found'),
+            status=404
+        )
+
+    try:
+        # Finally delete user
+        db.session.delete(r)
+        db.session.commit()
+
+        return ajax_response(
+            status=200
+        )
+    except Exception as e:
+        db.session.rollback()
+        return internal_server_error(str(e))
+
 @blueprint.route(
     '/role/', methods=['GET'], defaults={'rid': None}, endpoint='roles'
 )
@@ -366,14 +430,19 @@ def role(rid):
     if rid:
         r = Role.query.get(rid)
 
-        res = {'id': r.id, 'name': r.name}
+        res = {'id': r.id,
+               'name': r.name,
+               'description': r.description,
+               'permissions': r.permissions}
     else:
         roles = Role.query.all()
 
         roles_data = []
         for r in roles:
             roles_data.append({'id': r.id,
-                               'name': r.name})
+                               'name': r.name,
+                               'description': r.description,
+                               'permissions': r.permissions})
 
         res = roles_data
 
@@ -381,6 +450,32 @@ def role(rid):
         response=res,
         status=200
     )
+
+
+@blueprint.route(
+    '/role/', methods=['POST'], defaults={'rid': None}, endpoint='role_save'
+)
+@blueprint.route('/role/<int:rid>', methods=['DELETE'], endpoint='role_delete')
+@roles_required('Administrator')
+def role_save(rid):
+    """
+
+    Args:
+      rid: Role id
+
+    """
+
+    if request.method == 'DELETE':
+        return delete_role(rid)
+
+    data = request.form if request.form else json.loads(
+        request.data
+    )
+
+    if id is None:
+        return create_role(data)
+    else:
+        return update_role(rid, data)
 
 
 @blueprint.route(
@@ -445,6 +540,17 @@ def normalise_password(password):
     return password if is_normalized(normalise_form, password) else\
         normalize(normalise_form, password)
 
+
+def validate_unique_role(data):
+    if 'name' not in data:
+        return
+
+    exist_roles = Role.query.filter(
+        func.lower(Role.name) == func.lower(data['name'])
+    ).count()
+
+    if exist_roles != 0:
+        raise InternalServerError(_("Role name must be unique."))
 
 def validate_password(data, new_data):
     """
@@ -651,3 +757,38 @@ def delete_user(uid):
         return False, str(e)
 
     return True, ''
+
+
+@blueprint.route('/all_permissions', methods=['GET'], endpoint='all_permissions')
+@roles_required('Administrator')
+def get_all_permissions():
+    return ajax_response(
+        status=200,
+        response=permissions_obj.all_permissions
+    )
+
+
+@blueprint.route('/save_permissions/<int:rid>', methods=['PUT'], endpoint='save_permissions')
+@roles_required('Administrator')
+def save_permissions(rid):
+    data = request.form if request.form else json.loads(
+        request.data
+    )
+
+    r = Role.query.get(rid)
+
+    try:
+        r.permissions = data['permissions']
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return internal_server_error(errormsg=str(e))
+
+    return ajax_response(
+        status=200,
+        response={
+            'id': r.id,
+            'name': r.name,
+            'permissions': r.permissions
+        }
+    )
