@@ -9,7 +9,7 @@
 import _ from 'lodash';
 import PropTypes from 'prop-types';
 
-import React, { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 
 import { Box, Grid } from '@mui/material';
 import InfoRoundedIcon from '@mui/icons-material/InfoRounded';

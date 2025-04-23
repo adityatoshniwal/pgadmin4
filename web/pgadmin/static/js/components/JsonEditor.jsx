@@ -7,7 +7,7 @@
 //
 //////////////////////////////////////////////////////////////
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {default as OrigJsonEditor} from 'jsoneditor.min';
 import PropTypes from 'prop-types';
 import CustomPropTypes from '../custom_prop_types';

@@ -7,7 +7,6 @@
 //
 //////////////////////////////////////////////////////////////
 
-import React from 'react';
 import gettext from 'sources/gettext';
 import PreferencesComponent from './components/PreferencesComponent';
 import PreferencesTree from './components/PreferencesTree';

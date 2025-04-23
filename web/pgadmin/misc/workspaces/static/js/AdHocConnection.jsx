@@ -7,7 +7,7 @@
 //
 //////////////////////////////////////////////////////////////
 
-import React, { useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import gettext from 'sources/gettext';
 import url_for from 'sources/url_for';
 import _ from 'lodash';
@@ -215,7 +215,6 @@ class AdHocConnectionSchema extends BaseUISchema {
         disabled: (state) => state.sid,
       },{
         id: 'did', label: gettext('Database'), deps: ['sid', 'connected'],
-        controlProps: {creatable: true},
         type: (state) => {
           if (state?.sid) {
             return {
@@ -224,12 +223,13 @@ class AdHocConnectionSchema extends BaseUISchema {
                 state.sid, 'get_new_connection_database'
               ),
               optionsReloadBasis: `${state.sid} ${this.isServerConnected(state.sid)}`,
+              optionsLoaded: (res) => this.dbs = res,
+              controlProps: {creatable: true},
             };
           } else {
             return {type: 'text'};
           }
         },
-        optionsLoaded: (res) => this.dbs = res,
         depChange: (state) => {
           /* Once the option is selected get the name */
           return {
@@ -238,7 +238,6 @@ class AdHocConnectionSchema extends BaseUISchema {
         }
       }, {
         id: 'user', label: gettext('User'), deps: ['sid', 'connected'],
-        controlProps: {creatable: true},
         type: (state) => {
           if (state?.sid) {
             return {
@@ -247,6 +246,7 @@ class AdHocConnectionSchema extends BaseUISchema {
                 state.sid, 'get_new_connection_user'
               ),
               optionsReloadBasis: `${state.sid} ${this.isServerConnected(state.sid)}`,
+              controlProps: {creatable: true},
             };
           } else {
             return {type: 'text'};

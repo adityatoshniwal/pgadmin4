@@ -199,6 +199,7 @@ export class TableNodeModel extends DefaultNodeModel {
 }
 
 function RowIcon({icon}) {
+  console.log(icon);
   return (
     <div style={{padding: '0rem 0.125rem'}}>
       <img src={icon} alt="" crossOrigin="anonymous"/>

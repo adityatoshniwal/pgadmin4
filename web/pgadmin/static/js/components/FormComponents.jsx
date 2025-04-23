@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////////////
 /* Common form components used in pgAdmin */
 
-import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { styled } from '@mui/material/styles';
 import {
   Box, FormControl, OutlinedInput, FormHelperText, ToggleButton, ToggleButtonGroup,
@@ -351,8 +351,7 @@ FormInputDateTimePicker.propTypes = {
 };
 
 /* Use forwardRef to pass ref prop to OutlinedInput */
-export const InputText = forwardRef(({
-  cid, helpid, readonly, disabled, value, onChange, controlProps, type, size, inputStyle, ...props }, ref) => {
+export function InputText({ref, cid, helpid, readonly, disabled, value, onChange, controlProps, type, size, inputStyle, ...props }) {
 
   const maxlength = typeof(controlProps?.maxLength) != 'undefined' ? controlProps.maxLength : 255;
   const patterns = {
@@ -390,7 +389,7 @@ export const InputText = forwardRef(({
 
   const filteredProps = _.pickBy(props, (_v, key)=>(
     /* When used in ButtonGroup, following props should be skipped */
-    !['color', 'disableElevation', 'disableFocusRipple', 'disableRipple'].includes(key)
+    (!['color', 'disableElevation', 'disableFocusRipple', 'disableRipple'].includes(key))
   ));
 
   return (
@@ -424,7 +423,7 @@ export const InputText = forwardRef(({
       {...(['numeric', 'int'].indexOf(type) > -1 ? { type: 'tel' } : { type: type })}
     />
   );
-});
+};
 InputText.displayName = 'InputText';
 InputText.propTypes = {
   cid: PropTypes.string,
@@ -656,14 +655,14 @@ InputRadio.propTypes = {
   labelPlacement: PropTypes.string
 };
 
-export const ToggleCheckButton = forwardRef(({ value, selected, label, ...props }, ref) => {
+export function ToggleCheckButton({ref, value, selected, label, ...props}) {
   return (
     <ToggleButton ref={ref} value={value} component={selected ? PrimaryButton : DefaultButton}
       aria-label={label} {...props}>
       <CheckRoundedIcon style={{ visibility: selected ? 'visible' : 'hidden', fontSize: '1.2rem' }} />&nbsp;{label}
     </ToggleButton>
   );
-});
+};
 ToggleCheckButton.displayName = 'ToggleCheckButton';
 ToggleCheckButton.propTypes = {
   value: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.bool]),
@@ -672,7 +671,7 @@ ToggleCheckButton.propTypes = {
   label: PropTypes.string,
 };
 
-export const InputToggle = forwardRef(({ cid, value, onChange, options, disabled, readonly, helpid, ...props }, ref) => {
+export function InputToggle({ ref, cid, value, onChange, options, disabled, readonly, helpid, ...props }) {
   return (
     <>
       <ToggleButtonGroup
@@ -695,7 +694,7 @@ export const InputToggle = forwardRef(({ cid, value, onChange, options, disabled
       {helpid && <input style={{display: 'none'}} defaultValue={options?.find((o)=>o.value==value)?.label} id={cid} aria-describedby={helpid} />}
     </>
   );
-});
+};
 InputToggle.displayName = 'InputToggle';
 InputToggle.propTypes = {
   cid: PropTypes.string,
@@ -916,8 +915,22 @@ InputSelectNonSearch.propTypes = {
   })),
 };
 
-export const InputSelect = forwardRef(({
-  cid, helpid, onChange, options, readonly = false, value, controlProps = {}, optionsLoaded, optionsReloadBasis, disabled, ...props }, ref) => {
+export function InputSelect(
+  {
+    ref,
+    cid,
+    helpid,
+    onChange,
+    options,
+    readonly = false,
+    value,
+    controlProps = {},
+    optionsLoaded,
+    optionsReloadBasis,
+    disabled,
+    ...props
+  }
+) {
   const [[finalOptions, isLoading], setFinalOptions] = useState([[], true]);
   const theme = useTheme();
 
@@ -1006,7 +1019,7 @@ export const InputSelect = forwardRef(({
     value: realValue,
     menuPortalTarget: document.body,
     styles: styles,
-    inputId: cid,
+    inputId: `${cid}-autocomplete`,
     placeholder: (readonly || disabled) ? '' : controlProps.placeholder || gettext('Select an item...'),
     maxLength: controlProps.maxLength,
     ...otherProps,
@@ -1039,7 +1052,7 @@ export const InputSelect = forwardRef(({
       </>
     );
   }
-});
+};
 InputSelect.displayName = 'InputSelect';
 InputSelect.propTypes = {
   cid: PropTypes.string,
