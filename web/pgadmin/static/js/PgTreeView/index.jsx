@@ -12,7 +12,6 @@ import EmptyPanelMessage from '../components/EmptyPanelMessage';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
 
 
-
 const Root = styled('div')(({ theme }) => ({
   height: '100%',
   '& .PgTree-tree': {
@@ -22,12 +21,26 @@ const Root = styled('div')(({ theme }) => ({
     display: 'flex',
     flexDirection: 'column',
     flex: 1,
-    '& .PgTree-leafNode': {
-      marginLeft: '1.5rem'
+    '& *:focus-visible': {
+      outline: 'none',
     },
-    '& .PgTree-node': {
-      display: 'inline-block',
-      paddingLeft: '1.5rem',
+    '& .PgTree-nodeLabel': {
+      height: '100%',
+
+      '& .PgTree-icon': {
+        display: 'inline-block',
+        width: '20px',
+        backgroundPosition: 'center',
+      },
+
+      '& .no-icon': {
+        display: 'none',
+        paddingLeft: '0rem',
+      }
+    },
+    '& .PgTree-defaultNode': {
+      display: 'flex',
+      alignItems: 'center',
       height: '100%',
     },
     '& .PgTree-focusedNode': {
@@ -85,7 +98,9 @@ export default function PgTreeView({ data = [], hasCheckbox = false,
                 disableDrag={true}
                 disableDrop={true}
                 dndRootElement={treeContainerRef.current}
+                selectionFollowsFocus
                 {...props}
+                indent={24}
               >
                 {
                   (props) => <Node onNodeSelectionChange={onSelectionChange} hasCheckbox={hasCheckbox} {...props} />
@@ -109,7 +124,7 @@ PgTreeView.propTypes = {
   NodeComponent: PropTypes.func
 };
 
-function DefaultNode({ node, style, tree, hasCheckbox, onNodeSelectionChange }) {
+function DefaultNode({ node, style, tree, hasCheckbox, onNodeSelectionChange, ...props }) {
 
   const pgTreeSelCtx = React.useContext(PgTreeSelectionContext);
   const [isSelected, setIsSelected] = React.useState(pgTreeSelCtx.includes(node.id) || node.data?.isSelected);
@@ -163,28 +178,17 @@ function DefaultNode({ node, style, tree, hasCheckbox, onNodeSelectionChange }) 
     onNodeSelectionChange();
   };
 
-  const onSelect = (e) => {
-    node.focus();
-    e.stopPropagation();
-  };
-
-  const onKeyDown = (e) => {
-    if (e.code == 'Enter') {
-      onSelect(e);
-    }
-  };
-
+  const className = `${node.isSelected ? 'PgTree-focusedNode' : ''}`;
   return (
-    <div style={style} className={node.isFocused ? 'PgTree-focusedNode' : ''} onClick={onSelect} onKeyDown={onKeyDown}>
-      <CollectionArrow node={node} tree={tree} selectedNodeIds={pgTreeSelCtx} />
-      {
-        hasCheckbox ? <Checkbox style={{ padding: 0 }} color="primary" className={!node.isInternal ? 'PgTree-leafNode' : null}
-          checked={isSelected}
-          checkedIcon={isIndeterminate ? <IndeterminateCheckBoxIcon style={{ height: '1.4rem' }} /> : <CheckBoxIcon style={{ height: '1.4rem' }} />}
-          onChange={onCheckboxSelection} /> :
-          <span className={node.data.icon}></span>
-      }
-      <div className={node.data.icon + ' PgTree-node'}>{node.data.name}</div>
+    <div style={style} className={className} {...props}>
+      <div className={'PgTree-defaultNode'}>
+        <ExpandIcon node={node} tree={tree} selectedNodeIds={pgTreeSelCtx} />
+        <IndentIcon node={node} hasCheckbox={hasCheckbox} isSelected={isSelected} isIndeterminate={isIndeterminate} onCheckboxSelection={onCheckboxSelection}  />
+        <div className='PgTree-nodeLabel'>
+          <span className={`PgTree-icon ${node.data.icon || 'no-icon'}`} />
+          {node.data.name}
+        </div>
+      </div>
     </div>
   );
 }
@@ -197,7 +201,31 @@ DefaultNode.propTypes = {
   onNodeSelectionChange: PropTypes.func
 };
 
-function CollectionArrow({ node, tree, selectedNodeIds }) {
+function IndentIcon({node, hasCheckbox, isSelected, isIndeterminate, onCheckboxSelection}) {
+  if(hasCheckbox) {
+    return (
+      <Checkbox style={{ padding: 0 }} color="primary"
+        checked={isSelected}
+        checkedIcon={isIndeterminate ? <IndeterminateCheckBoxIcon style={{ height: '1.5rem' }} /> : <CheckBoxIcon style={{ height: '1.5rem' }} />}
+        onChange={onCheckboxSelection}
+      />
+    );
+  }
+  if(hasExpand(node)) {
+    return <></>;
+  }
+  return <div style={{width: '24px', height: '24px', marginLeft: '-36px', borderLeft: '1px solid #ebeef3'}}></div>;
+}
+
+IndentIcon.propTypes = {
+  node: PropTypes.object,
+  hasCheckbox: PropTypes.bool,
+  isSelected: PropTypes.bool,
+  isIndeterminate: PropTypes.bool,
+  onCheckboxSelection: PropTypes.func
+};
+
+function ExpandIcon({ node, tree, selectedNodeIds }) {
   const toggleNode = () => {
     node.isInternal && node.toggle();
     if (node.isSelected && node.isOpen) {
@@ -205,14 +233,17 @@ function CollectionArrow({ node, tree, selectedNodeIds }) {
       selectAllChild(node, tree, 'expand', selectedNodeIds);
     }
   };
-  return (
-    <span onClick={toggleNode} onKeyDown={() => {/* handled by parent */ }}>
-      {node.isInternal && node?.children.length > 0 ? <ToggleArrowIcon node={node} /> : null}
-    </span>
-  );
+  if(hasExpand(node)) {
+    return (
+      <span onClick={toggleNode} onKeyDown={() => {/* handled by parent */ }}>
+        {node.isOpen ? <ExpandMoreIcon /> : <ChevronRightIcon />}
+      </span>
+    );
+  }
+  return (<div style={{ width: '24px', height: '24px' }}></div>);
 }
 
-CollectionArrow.propTypes = {
+ExpandIcon.propTypes = {
   node: PropTypes.object,
   tree: PropTypes.object,
   selectedNodeIds: PropTypes.array
@@ -251,9 +282,9 @@ function checkAndSelectParent(chNode) {
   }
 }
 
-checkAndSelectParent.propTypes = {
-  chNode: PropTypes.object
-};
+function hasExpand(node) {
+  return node.isInternal && node?.children.length > 0;
+}
 
 function delectPrentNode(chNode) {
   if (chNode) {

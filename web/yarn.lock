@@ -2562,6 +2562,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@nozbe/microfuzz@npm:^1.0.0":
+  version: 1.0.0
+  resolution: "@nozbe/microfuzz@npm:1.0.0"
+  checksum: 619298af67ea5c2e0ad535693ce8a4153c319cbff5d9da7d7b1ce7d888eb0d34d04307aaf7fc814378aa5efa1c2e9d8c88a97276228b3b9f97ab991292b9d916
+  languageName: node
+  linkType: hard
+
 "@npmcli/agent@npm:^3.0.0":
   version: 3.0.0
   resolution: "@npmcli/agent@npm:3.0.0"
@@ -13807,6 +13814,7 @@ __metadata:
     "@mui/icons-material": ^7.1.0
     "@mui/material": ^7.1.0
     "@mui/x-date-pickers": ^8.3.0
+    "@nozbe/microfuzz": ^1.0.0
     "@projectstorm/react-diagrams": ^7.0.4
     "@simonwep/pickr": ^1.5.1
     "@svgr/webpack": ^8.1.0
