@@ -22,16 +22,18 @@ import getApiInstance from '../../../../static/js/api_instance';
 import CloseSharpIcon from '@mui/icons-material/CloseSharp';
 import HelpIcon from '@mui/icons-material/HelpRounded';
 import SaveSharpIcon from '@mui/icons-material/SaveSharp';
-import SettingsBackupRestoreIcon from'@mui/icons-material/SettingsBackupRestore';
-import pgAdmin from 'sources/pgadmin';
+import SettingsBackupRestoreIcon from '@mui/icons-material/SettingsBackupRestore';
 import { DefaultButton, PgIconButton, PrimaryButton } from '../../../../static/js/components/Buttons';
-import BaseUISchema from 'sources/SchemaView/base_schema.ui';
 import { getBinaryPathSchema } from '../../../../browser/server_groups/servers/static/js/binary_path.ui';
 import usePreferences from '../store';
 import { getBrowser } from '../../../../static/js/utils';
+import PreferencesTree from './PreferencesTree';
+import { usePgAdmin } from '../../../../static/js/PgAdminProvider';
+import { InputText } from '../../../../static/js/components/FormComponents';
+import { SearchRounded } from '@mui/icons-material';
+import PreferencesSchema from './preferences.ui';
 
-
-const StyledBox = styled(Box)(({theme}) => ({
+const StyledBox = styled(Box)(({ theme }) => ({
   '& .PreferencesComponent-root': {
     display: 'flex',
     flexDirection: 'column',
@@ -100,32 +102,9 @@ const StyledBox = styled(Box)(({theme}) => ({
   },
 }));
 
-
-class PreferencesSchema extends BaseUISchema {
-  constructor(initValues = {}, schemaFields = []) {
-    super({
-      ...initValues
-    });
-    this.schemaFields = schemaFields;
-    this.category = '';
-  }
-
-  get idAttribute() {
-    return 'id';
-  }
-
-  categoryUpdated() {
-    this.state?.validate(this.sessData);
-  }
-
-  get baseFields() {
-    return this.schemaFields;
-  }
-}
-
 async function reloadPgAdmin() {
-  let {name: browser} = getBrowser();
-  if(browser == 'Electron') {
+  let { name: browser } = getBrowser();
+  if (browser == 'Electron') {
     await window.electronUI.log('test');
     await window.electronUI.reloadApp();
   } else {
@@ -178,6 +157,86 @@ RightPanel.propTypes = {
   onDataChange: PropTypes.func
 };
 
+function addNote(node, subNode, nodeData, preferencesData, note = '') {
+  // Check and add the note for the element.
+  if (subNode.label == gettext('Nodes') && node.label == gettext('Browser')) {
+    note = gettext('This settings is to Show/Hide nodes in the object explorer.');
+  }
+
+  if (note && note.length > 0) {
+    //Add Note for Nodes
+    preferencesData.push(
+      {
+        id: _.uniqueId('note') + subNode.id,
+        type: 'note',
+        text: note,
+        'parentId': nodeData['id'],
+        visible: false,
+      },
+    );
+  }
+}
+
+function setThemesOptions(element) {
+  if (element.name == 'theme') {
+    element.type = 'theme';
+
+    element.options.forEach((opt) => {
+      if (opt.value == element.value) {
+        opt.selected = true;
+      } else {
+        opt.selected = false;
+      }
+      opt.preview_src = opt.preview_src && url_for('static', { filename: opt.preview_src });
+    });
+  }
+}
+
+function getKeyboardShortcuts(element, preferencesValues, node) {
+  element.type = 'keyboardShortcut';
+  element.canAdd = false;
+  element.canDelete = false;
+  element.canEdit = false;
+  element.editable = false;
+  if (usePreferences().getPreferences(node.label.toLowerCase(), element.name)?.value) {
+    let temp = usePreferences().getPreferences(node.label.toLowerCase(), element.name).value;
+    preferencesValues[element.id] = temp;
+  } else {
+    preferencesValues[element.id] = element.value;
+  }
+}
+
+function setResultsOptions(element, subNode, preferencesValues, type) {
+  if (element.name == 'column_data_max_width') {
+    let size_control_id = null;
+    subNode.preferences.forEach((_el) => {
+      if (_el.name == 'column_data_auto_resize') {
+        size_control_id = _el.id;
+      }
+    });
+    element.disabled = (state) => {
+      return state[size_control_id] != 'by_data';
+    };
+  }
+  element.type = type;
+  preferencesValues[element.id] = element.value;
+}
+
+function setWorkspaceOptions(element, subNode, preferencesValues, type) {
+  if (element.name == 'open_in_res_workspace') {
+    let layout_control_id = null;
+    subNode.preferences.forEach((_el) => {
+      if (_el.name == 'layout') {
+        layout_control_id = _el.id;
+      }
+    });
+    element.disabled = (state) => {
+      return state[layout_control_id] != 'workspace';
+    };
+  }
+  element.type = type;
+  preferencesValues[element.id] = element.value;
+}
 
 export default function PreferencesComponent({ ...props }) {
 
@@ -192,6 +251,8 @@ export default function PreferencesComponent({ ...props }) {
   const api = getApiInstance();
   const firstTreeElement = React.useRef('');
   const preferencesStore = usePreferences();
+  const pgAdmin = usePgAdmin();
+  const [searchVal, setSearchVal] = React.useState('');
 
   useEffect(() => {
     const pref_url = url_for('preferences.index');
@@ -220,7 +281,7 @@ export default function PreferencesComponent({ ...props }) {
           'isExpanded': true,
         };
 
-        if(firstTreeElement.current.length == 0) {
+        if (firstTreeElement.current.length == 0) {
           firstTreeElement.current = node.label;
         }
 
@@ -278,23 +339,20 @@ export default function PreferencesComponent({ ...props }) {
         element.editable = false;
         element.disabled = true;
         preferencesValues[element.id] = JSON.parse(element.value);
-        if(addBinaryPathNote) {
+        if (addBinaryPathNote) {
           addNote(node, subNode, nodeData, preferencesData, note);
         }
         addBinaryPathNote = true;
-      }
-      else if (type == 'select') {
-        setControlProps(element);
+      } else if (type == 'select') {
+        element.controlProps = element.control_props ?? {};
         element.type = type;
         preferencesValues[element.id] = element.value;
 
         setThemesOptions(element);
-      }
-      else if (type === 'keyboardShortcut') {
+      } else if (type === 'keyboardShortcut') {
         getKeyboardShortcuts(element, preferencesValues, node);
       } else if (type === 'threshold') {
         element.type = 'threshold';
-
         let _val = element.value.split('|');
         preferencesValues[element.id] = { 'warning': _val[0], 'alert': _val[1] };
       } else if (subNode.label == gettext('Results grid') && node.label == gettext('Query Tool')) {
@@ -314,99 +372,6 @@ export default function PreferencesComponent({ ...props }) {
     });
   }
 
-  function setResultsOptions(element, subNode, preferencesValues, type) {
-    if (element.name== 'column_data_max_width') {
-      let size_control_id = null;
-      subNode.preferences.forEach((_el) => {
-        if(_el.name == 'column_data_auto_resize') {
-          size_control_id = _el.id;
-        }
-
-      });
-      element.disabled = (state) => {
-        return state[size_control_id] != 'by_data';
-      };
-    }
-    element.type = type;
-    preferencesValues[element.id] = element.value;
-  }
-
-  function setWorkspaceOptions(element, subNode, preferencesValues, type) {
-    if (element.name== 'open_in_res_workspace') {
-      let layout_control_id = null;
-      subNode.preferences.forEach((_el) => {
-        if(_el.name == 'layout') {
-          layout_control_id = _el.id;
-        }
-
-      });
-      element.disabled = (state) => {
-        return state[layout_control_id] != 'workspace';
-      };
-    }
-    element.type = type;
-    preferencesValues[element.id] = element.value;
-  }
-
-  function setThemesOptions(element) {
-    if (element.name == 'theme') {
-      element.type = 'theme';
-
-      element.options.forEach((opt) => {
-        if (opt.value == element.value) {
-          opt.selected = true;
-        } else {
-          opt.selected = false;
-        }
-        opt.preview_src = opt.preview_src && url_for('static', { filename: opt.preview_src });
-      });
-    }
-  }
-  function setControlProps(element) {
-    if (element.control_props !== undefined) {
-      element.controlProps = element.control_props;
-    } else {
-      element.controlProps = {};
-    }
-
-  }
-
-  function getKeyboardShortcuts(element, preferencesValues, node) {
-    element.type = 'keyboardShortcut';
-    element.canAdd = false;
-    element.canDelete = false;
-    element.canEdit = false;
-    element.editable = false;
-    if (preferencesStore.getPreferences(node.label.toLowerCase(), element.name)?.value) {
-      let temp = preferencesStore.getPreferences(node.label.toLowerCase(), element.name).value;
-      preferencesValues[element.id] = temp;
-    } else {
-      preferencesValues[element.id] = element.value;
-    }
-  }
-  function addNote(node, subNode, nodeData, preferencesData, note = '') {
-    // Check and add the note for the element.
-    if (subNode.label == gettext('Nodes') && node.label == gettext('Browser')) {
-      note = [gettext('This settings is to Show/Hide nodes in the object explorer.')].join('');
-    } else {
-      note = [note].join('');
-    }
-
-    if (note && note.length > 0) {
-      //Add Note for Nodes
-      preferencesData.push(
-        {
-          id: _.uniqueId('note') + subNode.id,
-          type: 'note',
-          text: note,
-          'parentId': nodeData['id'],
-          visible: false,
-        },
-      );
-    }
-
-  }
-
   function selectChildNode(item, prefTreeInit) {
     if (item.isExpanded && item._children && item._children.length > 0 && prefTreeInit.current && event.code !== 'ArrowUp') {
       pgAdmin.Browser.ptree.tree.setActiveFile(item._children[0], true);
@@ -420,9 +385,9 @@ export default function PreferencesComponent({ ...props }) {
       if (item.type == FileType.File) {
         prefSchema.current.schemaFields.forEach((field) => {
           field.visible = field.parentId === item._metadata.data.id &&
-            !field?.hidden ;
+            !field?.hidden;
 
-          if(field.visible && _.isNull(firstElement)) {
+          if (field.visible && _.isNull(firstElement)) {
             firstElement = field;
           }
 
@@ -446,7 +411,7 @@ export default function PreferencesComponent({ ...props }) {
 
     // Listen added preferences tree node event to expand the newly added node on tree load.
     pgAdmin.Browser.Events.on('preferences:tree:added', addPrefTreeNode);
-  }, []);
+  }, [pgAdmin.Browser.Events, pgAdmin.Browser.ptree?.tree, prefSchema]);
 
   function addPrefTreeNode(event, item) {
     if (item._parent._fileName == firstTreeElement.current && item._parent.isExpanded && !prefTreeInit.current) {
@@ -460,48 +425,48 @@ export default function PreferencesComponent({ ...props }) {
 
   function getControlMappedForType(type) {
     switch (type) {
-    case 'text':
-      return 'text';
-    case 'input':
-      return 'text';
-    case 'boolean':
-      return 'switch';
-    case 'node':
-      return 'switch';
-    case 'integer':
-      return 'numeric';
-    case 'numeric':
-      return 'numeric';
-    case 'date':
-      return 'datetimepicker';
-    case 'datetime':
-      return 'datetimepicker';
-    case 'options':
-      return 'select';
-    case 'select':
-      return 'select';
-    case 'select2':
-      return 'select';
-    case 'multiline':
-      return 'multiline';
-    case 'switch':
-      return 'switch';
-    case 'keyboardshortcut':
-      return 'keyboardShortcut';
-    case 'radioModern':
-      return 'toggle';
-    case 'selectFile':
-      return 'file';
-    case 'threshold':
-      return 'threshold';
-    default:
-      if (console?.warn) {
-        // Warning for developer only.
-        console.warn(
-          'Hmm.. We don\'t know how to render this type - \'\'' + type + '\' of control.'
-        );
-      }
-      return 'input';
+      case 'text':
+        return 'text';
+      case 'input':
+        return 'text';
+      case 'boolean':
+        return 'switch';
+      case 'node':
+        return 'switch';
+      case 'integer':
+        return 'numeric';
+      case 'numeric':
+        return 'numeric';
+      case 'date':
+        return 'datetimepicker';
+      case 'datetime':
+        return 'datetimepicker';
+      case 'options':
+        return 'select';
+      case 'select':
+        return 'select';
+      case 'select2':
+        return 'select';
+      case 'multiline':
+        return 'multiline';
+      case 'switch':
+        return 'switch';
+      case 'keyboardshortcut':
+        return 'keyboardShortcut';
+      case 'radioModern':
+        return 'toggle';
+      case 'selectFile':
+        return 'file';
+      case 'threshold':
+        return 'threshold';
+      default:
+        if (console?.warn) {
+          // Warning for developer only.
+          console.warn(
+            'Hmm.. We don\'t know how to render this type - \'\'' + type + '\' of control.'
+          );
+        }
+        return 'input';
     }
   }
 
@@ -598,7 +563,7 @@ export default function PreferencesComponent({ ...props }) {
     return requires_refresh;
   }
 
-  function save(save_data, data, layout_changed=false) {
+  function save(save_data, data, layout_changed = false) {
     api({
       url: url_for('preferences.index'),
       method: 'PUT',
@@ -621,11 +586,11 @@ export default function PreferencesComponent({ ...props }) {
           );
         });
       } else {
-        let requiresTreeRefresh = save_data.some((s)=>{
+        let requiresTreeRefresh = save_data.some((s) => {
           return (
-            s.name=='show_system_objects' || s.name=='show_empty_coll_nodes' ||
-            s.name.startsWith('show_node_') || s.name=='hide_shared_server' ||
-            s.name=='show_user_defined_templates'
+            s.name == 'show_system_objects' || s.name == 'show_empty_coll_nodes' ||
+            s.name.startsWith('show_node_') || s.name == 'hide_shared_server' ||
+            s.name == 'show_user_defined_templates'
           );
         });
         let requires_refresh = false;
@@ -667,7 +632,7 @@ export default function PreferencesComponent({ ...props }) {
               reloadPgAdmin();
               return true;
             },
-            function () { props.closeModal();},
+            function () { props.closeModal(); },
             gettext('Refresh'),
             gettext('Later')
           );
@@ -691,25 +656,25 @@ ${gettext('Note:')}<br> <ul style="padding-left:20px"><li style="list-style-type
 <li style="list-style-type:disc">${gettext('If the application language changes, a reload of the application will be required. You can choose to reload later at your convenience.')}</li></ul>`;
     pgAdmin.Browser.notifier.showModal(
       gettext('Reset all preferences'),
-      (closeModal)=>{
+      (closeModal) => {
         const onClick = (reset) => {
           resetPrefsToDefault(reset);
           closeModal();
         };
-        return(
+        return (
           <StyledBox display="flex" flexDirection="column" height="100%">
             <Box flexGrow="1" p={2}>
               {HTMLReactParser(text)}
             </Box>
             <Box className='Alert-footer'>
-              <DefaultButton className='Alert-margin' startIcon={<CloseIcon />} onClick={()=> closeModal()}>{'Cancel'}</DefaultButton>
+              <DefaultButton className='Alert-margin' startIcon={<CloseIcon />} onClick={() => closeModal()}>{'Cancel'}</DefaultButton>
               <DefaultButton className='Alert-margin' startIcon={<SaveSharpIcon />} onClick={() => onClick(true)} >{gettext('Save & Reload')}</DefaultButton>
-              <PrimaryButton className='Alert-margin' startIcon={ <SaveSharpIcon />} onClick={()=>onClick(false)}>{gettext('Save & Reload Later')}</PrimaryButton>
+              <PrimaryButton className='Alert-margin' startIcon={<SaveSharpIcon />} onClick={() => onClick(false)}>{gettext('Save & Reload Later')}</PrimaryButton>
             </Box>
           </StyledBox>
         );
       },
-      { isFullScreen: false, isResizeable: false, showFullScreen: false, isFullWidth: false, showTitle: true, id: 'id-reset-preferences'},
+      { isFullScreen: false, isResizeable: false, showFullScreen: false, isFullWidth: false, showTitle: true, id: 'id-reset-preferences' },
     );
   };
 
@@ -717,8 +682,8 @@ ${gettext('Note:')}<br> <ul style="padding-left:20px"><li style="list-style-type
     api({
       url: url_for('preferences.index'),
       method: 'DELETE'
-    }).then(()=>{
-      if (refresh){
+    }).then(() => {
+      if (refresh) {
         reloadPgAdmin();
         return true;
       }
@@ -739,13 +704,26 @@ ${gettext('Note:')}<br> <ul style="padding-left:20px"><li style="list-style-type
 
   return (
     <StyledBox height={'100%'}>
+      <Box className='PreferencesComponent-header'>
+        <Box marginLeft="auto">
+          <InputText
+            placeholder={gettext('Search')}
+            controlProps={{ title: gettext('Search') }}
+            value={searchVal}
+            onChange={(val) => {
+              setSearchVal(val);
+            }}
+            startAdornment={<SearchRounded />}
+          />
+        </Box>
+      </Box>
       <Box className='PreferencesComponent-root'>
         <Box className='PreferencesComponent-body'>
           <Box className='PreferencesComponent-treeContainer' >
             <Box className='PreferencesComponent-tree' id={'treeContainer'} tabIndex={0}>
               {
                 useMemo(
-                  () => (prefTreeData && props.renderTree(prefTreeData)),
+                  () => (prefTreeData && <PreferencesTree pgBrowser={pgAdmin.Browser} data={prefTreeData} />),
                   [prefTreeData]
                 )
               }
@@ -754,15 +732,15 @@ ${gettext('Note:')}<br> <ul style="padding-left:20px"><li style="list-style-type
           <Box className='PreferencesComponent-preferencesContainer'>
             {
               prefSchema.current && loadTree > 0 &&
-                <RightPanel
-                  schema={prefSchema.current} initValues={initValues}
-                  refreshKey={refreshKey}
-                  onDataChange={(changedData) => {
-                    Object.keys(changedData).length > 0 ?
-                      setDisableSave(false) : setDisableSave(true);
-                    prefChangedData.current = changedData;
-                  }}
-                ></RightPanel>
+              <RightPanel
+                schema={prefSchema.current} initValues={initValues}
+                refreshKey={refreshKey}
+                onDataChange={(changedData) => {
+                  Object.keys(changedData).length > 0 ?
+                    setDisableSave(false) : setDisableSave(true);
+                  prefChangedData.current = changedData;
+                }}
+              ></RightPanel>
             }
           </Box>
         </Box>
@@ -779,9 +757,9 @@ ${gettext('Note:')}<br> <ul style="padding-left:20px"><li style="list-style-type
               {gettext('Reset all preferences')}
             </DefaultButton>
             <DefaultButton className='PreferencesComponent-buttonMargin'
-              onClick={() => { props.closeModal();}}
+              onClick={() => { props.closeModal(); }}
               startIcon={
-                <CloseSharpIcon onClick={() => { props.closeModal();}} />
+                <CloseSharpIcon onClick={() => { props.closeModal(); }} />
               }>
               {gettext('Cancel')}
             </DefaultButton>
