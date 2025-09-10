@@ -31,6 +31,7 @@ import { GraphVisualiser } from './GraphVisualiser';
 import { usePgAdmin } from '../../../../../../static/js/PgAdminProvider';
 import pgAdmin from 'sources/pgadmin';
 import { connectServer, connectServerModal } from '../connectServer';
+import { StatusBarQuery } from './StatusBarQuery';
 
 const StyledBox = styled(Box)(({theme}) => ({
   display: 'flex',
@@ -51,6 +52,7 @@ export class ResultSetUtils {
     this.hasQueryCommitted = false;
     this.queryToolCtx = queryToolCtx;
     this.setLoaderText = null;
+    this.dataOutputCounter = 0;
   }
 
   static generateURLReconnectionFlag(baseUrl, transId, shouldReconnect) {
@@ -428,7 +430,7 @@ export class ResultSetUtils {
               async (formData) => {
                 try {
                   await connectServer(
-                    this.api, 
+                    this.api,
                     this.queryToolCtx.modal,
                     this.queryToolCtx.params.sid,
                     this.queryToolCtx.params.user,
@@ -752,7 +754,13 @@ export class ResultSetUtils {
         onExplain(planJson);
       } else {
         onExplain(null);
-        this.eventBus.fireEvent(QUERY_TOOL_EVENTS.FOCUS_PANEL, PANELS.DATA_OUTPUT);
+          this.dataOutputCounter += 1;
+          layoutDocker.openTab({
+            id: `${PANELS.DATA_OUTPUT}_${this.dataOutputCounter}`,
+            title: gettext('Data Output (%s)', this.dataOutputCounter),
+            content: <ResultSet />,
+            closable: true,
+          }, PANELS.MESSAGES, 'before-tab', true);
       }
     } else {
       if (httpMessage.data.data.result) {
@@ -1551,6 +1559,7 @@ export function ResultSet() {
             stripedRows={queryToolCtx.preferences?.sqleditor?.striped_rows}
           />
         </Box>
+        <StatusBarQuery />
       </>}
     </StyledBox>
   );

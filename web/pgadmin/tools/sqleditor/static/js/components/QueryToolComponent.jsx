@@ -260,7 +260,7 @@ export default function QueryToolComponent({params, pgWindow, pgAdmin, selectedN
               maximizable: true,
               tabs: [
                 LayoutDocker.getPanel({
-                  id: PANELS.DATA_OUTPUT, title: gettext('Data Output'), content: <ResultSet />,
+                  id: PANELS.DATA_OUTPUT, title: gettext('Data Output'), content: <ResultSet />, closable: true,
                 }),
                 LayoutDocker.getPanel({
                   id: PANELS.MESSAGES, title: gettext('Messages'), content: <Messages />,
@@ -546,7 +546,7 @@ export default function QueryToolComponent({params, pgWindow, pgAdmin, selectedN
       });
     } else if(error.response?.status == 403  && error.response?.data.info == 'ACCESS_DENIED') {
       pgAdmin.Browser.notifier.error(error.response.data.errormsg);
-      
+
     }else if(error?.response?.status == 428) {
       connectServerModal(modal, error.response?.data?.result, async (passwordData)=>{
 

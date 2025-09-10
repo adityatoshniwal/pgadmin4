@@ -26,19 +26,19 @@ const StyledBox = styled(Box)(({theme}) => ({
   flexWrap: 'wrap',
   backgroundColor: theme.otherVars.editorToolbarBg,
   userSelect: 'text',
-  '& .StatusBar-padding': {
+  '& .StatusBarQuery-padding': {
     padding: '2px 12px',
-    '&.StatusBar-mlAuto': {
+    '&.StatusBarQuery-mlAuto': {
       marginLeft: 'auto',
     },
-    '&.StatusBar-divider': {
+    '&.StatusBarQuery-divider': {
       ...theme.mixins.panelBorder.right,
     },
   },
 }));
 
 
-export function StatusBar({eol, handleEndOfLineChange}) {
+export function StatusBarQuery() {
   const eventBus = useContext(QueryToolEventsContext);
   const [position, setPosition] = useState([1, 1]);
   const [lastTaskText, setLastTaskText] = useState(null);
@@ -51,7 +51,6 @@ export function StatusBar({eol, handleEndOfLineChange}) {
     deleted: 0,
   });
   const {seconds, minutes, hours, msec, start:startTimer, pause:pauseTimer, reset:resetTimer} = useStopwatch({});
-  const eolMenuRef = React.useRef(null);
   const {openMenuName, toggleMenu, onMenuClose} = usePgMenuGroup();
   // NONE - no select, PAGE - show select all, ALL - select all.
   const [allRowsSelect, setAllRowsSelect] = useState('NONE');
@@ -115,56 +114,23 @@ export function StatusBar({eol, handleEndOfLineChange}) {
 
   return (
     <StyledBox>
-      {/* <Box className='StatusBar-padding StatusBar-divider'>{serverCursor && gettext('Query executed with server cursor')} {!serverCursor && gettext('Total rows: %s', rowsCount)}</Box>
+      <Box className='StatusBarQuery-padding StatusBarQuery-divider'>{serverCursor && gettext('Query executed with server cursor')} {!serverCursor && gettext('Total rows: %s', rowsCount)}</Box>
       {lastTaskText &&
-        <Box className='StatusBar-padding StatusBar-divider'>{lastTaskText} {hours.toString().padStart(2, '0')}:{minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}.{msec.toString().padStart(3, '0')}</Box>
+        <Box className='StatusBarQuery-padding StatusBarQuery-divider'>{lastTaskText} {hours.toString().padStart(2, '0')}:{minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}.{msec.toString().padStart(3, '0')}</Box>
       }
       {!lastTaskText && !_.isNull(lastTaskText) &&
-        <Box className='StatusBar-padding StatusBar-divider'>{lastTaskText} {hours.toString().padStart(2, '0')}:{minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}.{msec.toString().padStart(3, '0')}</Box>
+        <Box className='StatusBarQuery-padding StatusBarQuery-divider'>{lastTaskText} {hours.toString().padStart(2, '0')}:{minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}.{msec.toString().padStart(3, '0')}</Box>
       }
       {Boolean(selectedRowsCount) &&
-        <Box className='StatusBar-padding StatusBar-divider'>{gettext('Rows selected: %s', allRowsSelect == 'ALL' ? rowsCount : selectedRowsCount)}</Box>}
+        <Box className='StatusBarQuery-padding StatusBarQuery-divider'>{gettext('Rows selected: %s', allRowsSelect == 'ALL' ? rowsCount : selectedRowsCount)}</Box>}
       {stagedText &&
-        <Box className='StatusBar-padding StatusBar-divider'>
+        <Box className='StatusBarQuery-padding StatusBarQuery-divider'>
           <span>{gettext('Changes staged: %s', stagedText)}</span>
         </Box>
-      } */}
-
-      <Box className='StatusBar-padding StatusBar-mlAuto' style={{display:'flex'}}>
-        <Box className="StatusBar-padding StatusBar-divider">
-          <Tooltip title="Select EOL Sequence" enterDelay={2500}>
-            <span
-              onClick={toggleMenu}
-              onKeyDown={getEnterKeyHandler(toggleMenu)}
-              ref={eolMenuRef}
-              name="menu-eoloptions"
-              style={{
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                fontSize: 'inherit',
-              }}
-            >
-              {eol.toUpperCase()}
-            </span>
-          </Tooltip>
-          <PgMenu
-            anchorRef={eolMenuRef}
-            open={openMenuName=='menu-eoloptions'}
-            onClose={onMenuClose}
-            label={gettext('EOL Options Menu')}
-          >
-            <PgMenuItem hasCheck value="lf" checked={eol === 'lf'} onClick={handleEndOfLineChange}>{gettext('LF')}</PgMenuItem>
-            <PgMenuItem hasCheck value="crlf" checked={eol === 'crlf'} onClick={handleEndOfLineChange}>{gettext('CRLF')}</PgMenuItem>
-          </PgMenu>
-        </Box>
-        <Box className='StatusBar-padding'>{gettext('Ln %s, Col %s', position[0], position[1])}</Box>
-      </Box>
+      }
     </StyledBox>
   );
 }
 
-StatusBar.propTypes = {
-  eol: PropTypes.string,
-  handleEndOfLineChange: PropTypes.func,
+StatusBarQuery.propTypes = {
 };
