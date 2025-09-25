@@ -1026,8 +1026,9 @@ def extract_sql_from_network_parameters(request_data, request_arguments,
 
 
 @blueprint.route('/poll/<int:trans_id>', methods=["GET"], endpoint='poll')
+@blueprint.route('/poll/<int:trans_id>/<int:result_no>', methods=["GET"], endpoint='poll_result')
 @pga_login_required
-def poll(trans_id):
+def poll(trans_id, result_no=1):
     """
     This method polls the result of the asynchronous query and returns
     the result.
@@ -1087,8 +1088,8 @@ def poll(trans_id):
         if messages and len(messages) > 0:
             result = ''.join(messages)
     elif status and conn is not None and session_obj is not None:
-        status, result = conn.poll(
-            formatted_exception_msg=True, no_result=True)
+        status, result = conn.poll(no_result=True)
+        # status, result = conn.poll(no_result=True)
         if not status:
             if not conn.connected():
                 return service_unavailable(
@@ -1135,7 +1136,7 @@ def poll(trans_id):
                     primary_keys = session_obj['primary_keys']
 
                 # Fetch column information
-                columns_info = conn.get_column_info()
+                columns_info = conn.result_sets[0].get_column_info()
                 client_primary_key = generate_client_primary_key_name(
                     columns_info
                 )
@@ -1144,7 +1145,7 @@ def poll(trans_id):
                 # If trans_obj is a QueryToolCommand then check for updatable
                 # resultsets and primary keys
                 if isinstance(trans_obj, QueryToolCommand) and \
-                        trans_obj.check_updatable_results_pkeys_oids():
+                        trans_obj.check_updatable_results_pkeys_oids(columns_info):
                     _, primary_keys = trans_obj.get_primary_keys()
                     session_obj['has_oids'] = trans_obj.has_oids()
                     # Update command_obj in session obj

@@ -31,7 +31,7 @@ from pgadmin.utils.exception import ExecuteError
 from pgadmin.utils.constants import SERVER_CONNECTION_CLOSED
 
 
-def is_query_resultset_updatable(conn, sql_path):
+def is_query_resultset_updatable(conn, sql_path, columns_info):
     """
         This function is used to check whether the last successful query
         produced editable results.
@@ -41,7 +41,6 @@ def is_query_resultset_updatable(conn, sql_path):
             sql_path: the path to the sql templates
                       primary_keys.sql & columns.sql.
     """
-    columns_info = conn.get_column_info()
 
     if columns_info is None or len(columns_info) < 1:
         return return_not_updatable()

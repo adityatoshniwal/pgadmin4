@@ -41,7 +41,8 @@ from pgadmin.utils.master_password import get_crypt_key
 from io import StringIO
 from pgadmin.utils.locker import ConnectionLocker
 from pgadmin.utils.driver import get_driver
-
+from typing import List
+from .result_set import ResultSet
 
 # On Windows, Psycopg is not compatible with the default ProactorEventLoop.
 # So, setting to SelectorEventLoop.
@@ -188,8 +189,9 @@ class Connection(BaseConnection):
         self.array_to_string = array_to_string
         self.qtLiteral = get_driver(config.PG_DEFAULT_DRIVER).qtLiteral
         self._autocommit = True
+        self.result_sets: List[ResultSet] = []
 
-        super(Connection, self).__init__()
+        super().__init__()
 
     def as_dict(self):
         """
@@ -1377,28 +1379,45 @@ WHERE db.datname = current_database()""")
             )
 
         more_results = True
-        while more_results:
-            if cur.get_rowcount() > 0:
-                result = []
-                try:
-                    if records == -1:
-                        result = cur.fetchwindow(
-                            from_rownum=0, to_rownum=cur.get_rowcount() - 1,
-                            _tupples=True)
-                    elif records is None:
-                        result = cur.fetchwindow(from_rownum=from_rownum,
-                                                 to_rownum=to_rownum,
-                                                 _tupples=True)
-                    else:
-                        result = cur.fetchmany(records, _tupples=True)
-                except psycopg.ProgrammingError:
-                    result = None
+
+        result_set = self.result_sets[0]
+        result = []
+        try:
+            if records == -1:
+                result = result_set.cur.fetchwindow(
+                    from_rownum=0, to_rownum=cur.get_rowcount() - 1,
+                    _tupples=True)
+            elif records is None:
+                result = result_set.cur.fetchwindow(from_rownum=from_rownum,
+                                         to_rownum=to_rownum,
+                                         _tupples=True)
             else:
-                # User performed operation which dose not produce record/s as
-                # result.
-                # for eg. DDL operations.
-                return True, None
-            more_results = cur.nextset()
+                result = result_set.cur.fetchmany(records, _tupples=True)
+        except psycopg.ProgrammingError:
+            result = None
+        #
+        # while more_results:
+        #     if cur.get_rowcount() > 0:
+        #         result = []
+        #         try:
+        #             if records == -1:
+        #                 result = cur.fetchwindow(
+        #                     from_rownum=0, to_rownum=cur.get_rowcount() - 1,
+        #                     _tupples=True)
+        #             elif records is None:
+        #                 result = cur.fetchwindow(from_rownum=from_rownum,
+        #                                          to_rownum=to_rownum,
+        #                                          _tupples=True)
+        #             else:
+        #                 result = cur.fetchmany(records, _tupples=True)
+        #         except psycopg.ProgrammingError:
+        #             result = None
+        #     else:
+        #         # User performed operation which dose not produce record/s as
+        #         # result.
+        #         # for eg. DDL operations.
+        #         return True, None
+        #     more_results = cur.nextset()
 
         return True, result
 
@@ -1507,7 +1526,29 @@ Failed to reset the connection to the server due to following error:
     def _wait_timeout(self, conn, time):
         pass  # This function is empty
 
-    def poll(self, formatted_exception_msg=False, no_result=False):
+    def clear_result_sets(self):
+        self.result_sets = []
+
+    def add_result_set(self, cur):
+        result_set = ResultSet(cur)
+
+        if cur.description is not None:
+            result_set.column_info = [desc.to_dict() for
+                                      desc in cur.ordered_description()]
+
+            pos = 0
+            if result_set.column_info:
+                for col in result_set.column_info:
+                    col['pos'] = pos
+                    pos += 1
+        else:
+            result_set.column_info = None
+        result_set.row_count = cur.get_rowcount()
+
+        self.result_sets.append(result_set)
+        return result_set
+
+    def poll(self, no_result=False):
         cur = self.__async_cursor
 
         if self.conn and self.conn.info.transaction_status == 1:
@@ -1523,8 +1564,6 @@ Failed to reset the connection to the server due to following error:
             return False, self.CURSOR_NOT_FOUND
 
         result = None
-        self.row_count = 0
-        self.column_info = None
 
         current_app.logger.log(
             25,
@@ -1533,28 +1572,13 @@ Failed to reset the connection to the server due to following error:
             )
         )
         more_result = True
+        self.clear_result_sets()
         while more_result:
             if self.conn:
-                if cur.description is not None:
-                    self.column_info = [desc.to_dict() for
-                                        desc in cur.ordered_description()]
+                result_set = self.add_result_set(cur)
+                if not no_result:
+                    result = result_set.get_result()
 
-                    pos = 0
-                    if self.column_info:
-                        for col in self.column_info:
-                            col['pos'] = pos
-                            pos += 1
-                else:
-                    self.column_info = None
-                self.row_count = cur.get_rowcount()
-                if not no_result and cur.get_rowcount() > 0:
-                    result = []
-                    try:
-                        result = cur.fetchall(_tupples=True)
-                    except psycopg.ProgrammingError:
-                        result = None
-                    except psycopg.Error:
-                        result = None
             more_result = cur.nextset()
 
         return status, result
@@ -1590,14 +1614,6 @@ Failed to reset the connection to the server due to following error:
         if self.__async_cursor is None:
             return 0
         return self.__async_cursor.rowcount
-
-    def get_column_info(self):
-        """
-        This function will returns list of columns for last async sql command
-        executed on the server.
-        """
-
-        return self.column_info
 
     def cancel_transaction(self, conn_id, did=None):
         """
@@ -1910,3 +1926,6 @@ Failed to reset the connection to the server due to following error:
                     return _cur.mogrify(query, parameters)
             else:
                 return query
+
+
+print(Connection.mro())

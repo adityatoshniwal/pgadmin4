@@ -844,7 +844,7 @@ class QueryToolCommand(BaseCommand, FetchedRowTracker):
     def can_filter(self):
         return False
 
-    def check_updatable_results_pkeys_oids(self):
+    def check_updatable_results_pkeys_oids(self, columns_info):
         """
             This function is used to check whether the last successful query
             produced updatable results and sets the necessary flags and
@@ -869,7 +869,7 @@ class QueryToolCommand(BaseCommand, FetchedRowTracker):
 
         self.is_updatable_resultset, self.table_has_oids,\
             self.primary_keys, pk_names, table_oid,\
-            self.columns_types = is_query_resultset_updatable(conn, sql_path)
+            self.columns_types = is_query_resultset_updatable(conn, sql_path, columns_info)
 
         # Create pk_names attribute in the required format
         if pk_names is not None:

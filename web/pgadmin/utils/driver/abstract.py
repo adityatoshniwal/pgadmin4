@@ -198,10 +198,10 @@ class BaseConnection(metaclass=ABCMeta):
                      formatted_exception_msg=False):
         pass
 
-    @abstractmethod
-    def async_fetchmany_2darray(self, records=-1,
-                                formatted_exception_msg=False):
-        pass
+    # @abstractmethod
+    # def async_fetchmany_2darray(self, records=-1,
+    #                             formatted_exception_msg=False):
+    #     pass
 
     @abstractmethod
     def connected(self):
@@ -231,9 +231,9 @@ class BaseConnection(metaclass=ABCMeta):
     def _wait_timeout(self, conn, time):
         pass
 
-    @abstractmethod
-    def poll(self, formatted_exception_msg=True, no_result=False):
-        pass
+    # @abstractmethod
+    # def poll(self, formatted_exception_msg=True, no_result=False):
+    #     pass
 
     @abstractmethod
     def status_message(self):
