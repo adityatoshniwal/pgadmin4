@@ -1471,7 +1471,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/types@npm:^7.0.0, @babel/types@npm:^7.20.7, @babel/types@npm:^7.21.3, @babel/types@npm:^7.27.1, @babel/types@npm:^7.27.3, @babel/types@npm:^7.28.2, @babel/types@npm:^7.28.4, @babel/types@npm:^7.28.5, @babel/types@npm:^7.4.4":
+"@babel/types@npm:^7.0.0, @babel/types@npm:^7.20.7, @babel/types@npm:^7.21.3, @babel/types@npm:^7.27.1, @babel/types@npm:^7.27.3, @babel/types@npm:^7.28.2, @babel/types@npm:^7.28.4, @babel/types@npm:^7.4.4":
+  version: 7.28.4
+  resolution: "@babel/types@npm:7.28.4"
+  dependencies:
+    "@babel/helper-string-parser": "npm:^7.27.1"
+    "@babel/helper-validator-identifier": "npm:^7.27.1"
+  checksum: 10c0/ac6f909d6191319e08c80efbfac7bd9a25f80cc83b43cd6d82e7233f7a6b9d6e7b90236f3af7400a3f83b576895bcab9188a22b584eb0f224e80e6d4e95f4517
+  languageName: node
+  linkType: hard
+
+"@babel/types@npm:^7.28.5":
   version: 7.28.5
   resolution: "@babel/types@npm:7.28.5"
   dependencies:
@@ -1489,14 +1499,14 @@ __metadata:
   linkType: hard
 
 "@codemirror/autocomplete@npm:^6.0.0, @codemirror/autocomplete@npm:^6.18.1":
-  version: 6.19.1
-  resolution: "@codemirror/autocomplete@npm:6.19.1"
+  version: 6.19.0
+  resolution: "@codemirror/autocomplete@npm:6.19.0"
   dependencies:
     "@codemirror/language": "npm:^6.0.0"
     "@codemirror/state": "npm:^6.0.0"
     "@codemirror/view": "npm:^6.17.0"
     "@lezer/common": "npm:^1.0.0"
-  checksum: 10c0/943893dce97629046817cbaf175150cd53e95123e02a2d076ea592518cf6db55452ada2c0e19504395331cb59e49fe209064f85660f5905488aa716947173963
+  checksum: 10c0/9ec67349fb29f241c20bd0d1eb5faee2f4b43e80e4ea404b590990af20385feb3c9131791fcb87791fd6c790fbbad488ed4283e4a062998b5b40bfb8f6b0f277
   languageName: node
   linkType: hard
 
@@ -1551,13 +1561,13 @@ __metadata:
   linkType: hard
 
 "@codemirror/lint@npm:^6.0.0, @codemirror/lint@npm:^6.8.2":
-  version: 6.9.1
-  resolution: "@codemirror/lint@npm:6.9.1"
+  version: 6.9.0
+  resolution: "@codemirror/lint@npm:6.9.0"
   dependencies:
     "@codemirror/state": "npm:^6.0.0"
     "@codemirror/view": "npm:^6.35.0"
     crelt: "npm:^1.0.5"
-  checksum: 10c0/858f149fc8b8f84acfb5511b5bd2540a3e0b320045f528202b6e5dba593d29e8745c4072df84a28f76b7b045bb90f033ce0747e2c24bb9b1b6e74833054cbd92
+  checksum: 10c0/4aeb829a8c025fb261100d028ebacfefe51e1f76d8b4e8273ffce40c214661e20ffde016073ce4b52d9b55f1149002a207d9f075c220eb7aa0e6f4790c197b0d
   languageName: node
   linkType: hard
 
@@ -2747,6 +2757,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@marimo-team/codemirror-sql@npm:^0.2.4":
+  version: 0.2.4
+  resolution: "@marimo-team/codemirror-sql@npm:0.2.4"
+  dependencies:
+    node-sql-parser: "npm:^5.3.13"
+  peerDependencies:
+    "@codemirror/autocomplete": ^6
+    "@codemirror/lint": ^6
+    "@codemirror/state": ^6
+    "@codemirror/view": ^6
+  checksum: 10c0/5754c12397b6eacbafaa961bb5cc2cad30debb7b0a55d667dd4e1fc747dbb604780424abe89662ae21d52956070e906394cb4a6138cdfe0db8867f2f963783b0
+  languageName: node
+  linkType: hard
+
 "@mui/core-downloads-tracker@npm:^7.3.4":
   version: 7.3.4
   resolution: "@mui/core-downloads-tracker@npm:7.3.4"
@@ -3909,6 +3933,13 @@ __metadata:
   version: 4.0.2
   resolution: "@types/parse-json@npm:4.0.2"
   checksum: 10c0/b1b863ac34a2c2172fbe0807a1ec4d5cb684e48d422d15ec95980b81475fac4fdb3768a8b13eef39130203a7c04340fc167bae057c7ebcafd7dec9fe6c36aeb1
+  languageName: node
+  linkType: hard
+
+"@types/pegjs@npm:^0.10.0":
+  version: 0.10.6
+  resolution: "@types/pegjs@npm:0.10.6"
+  checksum: 10c0/ee4a31cf07679ae5422fec95e499ad059483a9ab2815af1ada0ee858a00af6c7e6579a8e172810c1c9db04005941bef96d0dd2c28648769211f57df330f9c30f
   languageName: node
   linkType: hard
 
@@ -5226,6 +5257,13 @@ __metadata:
   bin:
     baseline-browser-mapping: dist/cli.js
   checksum: 10c0/6e2a5141e4a95e24bdf8539a9cb92ed4f6fb3974713ef8d8d1a7de9ec571ad1d38d7f90cd061496ad7790bdbf50cc21d9398e19647c065af4065540becd0a277
+  languageName: node
+  linkType: hard
+
+"big-integer@npm:^1.6.48":
+  version: 1.6.52
+  resolution: "big-integer@npm:1.6.52"
+  checksum: 10c0/9604224b4c2ab3c43c075d92da15863077a9f59e5d4205f4e7e76acd0cd47e8d469ec5e5dba8d9b32aa233951893b29329ca56ac80c20ce094b4a647a66abae0
   languageName: node
   linkType: hard
 
@@ -10889,6 +10927,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"node-sql-parser@npm:^5.3.13":
+  version: 5.3.13
+  resolution: "node-sql-parser@npm:5.3.13"
+  dependencies:
+    "@types/pegjs": "npm:^0.10.0"
+    big-integer: "npm:^1.6.48"
+  checksum: 10c0/d51e3295d38cd518d969612b4f1abd4b3185a424255a74a493dbb4ac74eb10cfb3a85d0ed3a4847a411275717bef443966d7a9350e038fa857c6374a2de240c2
+  languageName: node
+  linkType: hard
+
 "nopt@npm:^6.0.0":
   version: 6.0.0
   resolution: "nopt@npm:6.0.0"
@@ -12825,6 +12873,7 @@ __metadata:
     "@emotion/utils": "npm:^1.0.0"
     "@fluentui/keyboard-key": "npm:^0.4.23"
     "@fortawesome/fontawesome-free": "npm:latest"
+    "@marimo-team/codemirror-sql": "npm:^0.2.4"
     "@mui/icons-material": "npm:^7.3.4"
     "@mui/material": "npm:^7.3.4"
     "@mui/x-date-pickers": "npm:^8.12.0"

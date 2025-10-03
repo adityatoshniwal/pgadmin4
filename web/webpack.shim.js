@@ -47,6 +47,7 @@ let webpackShimConfig = {
     'react-dom': path.join(__dirname, 'node_modules/react-dom'),
     'stylis': path.join(__dirname, 'node_modules/stylis'),
     'popper.js': path.join(__dirname, 'node_modules/popper.js'),
+    '@marimo-team/codemirror-sql': path.join(__dirname, 'node_modules/@marimo-team/codemirror-sql/dist/index.js'),
 
     //socket
     'socketio': path.join(__dirname, './node_modules/socket.io-client/dist/socket.io.js'),

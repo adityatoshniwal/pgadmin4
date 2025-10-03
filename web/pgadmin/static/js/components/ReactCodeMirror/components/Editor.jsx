@@ -55,6 +55,8 @@ import { autoCompleteCompartment, eolCompartment, indentNewLine, eol } from '../
 import { OS_EOL } from '../../../../../tools/sqleditor/static/js/components/QueryToolConstants';
 import { useTheme } from '@mui/material';
 import plpgsqlFoldService from '../extensions/plpgsqlFoldService';
+import { sqlExtension, cteCompletionSource } from "@marimo-team/codemirror-sql";
+
 
 const arrowRightHtml = ReactDOMServer.renderToString(<KeyboardArrowRightRoundedIcon style={{width: '16px', fill: 'currentcolor'}} />);
 const arrowDownHtml = ReactDOMServer.renderToString(<ExpandMoreRoundedIcon style={{width: '16px', fill: 'currentcolor'}} />);
@@ -139,7 +141,7 @@ const defaultExtensions = [
     run: deleteCharBackwardStrict,
   }]),
   PgSQL.language.data.of({
-    autocomplete: false,
+    autocomplete: cteCompletionSource,
   }),
   EditorView.domEventHandlers({
     drop: handleDrop,
@@ -157,6 +159,25 @@ const defaultExtensions = [
   autoCompleteCompartment.of([]),
   EditorView.clipboardOutputFilter.of((text, state)=>{
     return CustomEditorView.getSelectionFromState(state);
+  }),
+  sqlExtension({
+    enableLinting: true,
+    linterConfig: {
+      delay: 250, // Validation delay in ms
+    },
+    gutterConfig: {
+      backgroundColor: "#3b82f6", // Current statement color
+      errorBackgroundColor: "#ef4444", // Error highlight color
+      hideWhenNotFocused: true,
+    },
+    enableHover: true,
+    hoverConfig: {
+      // schema: schema,
+      hoverTime: 300,
+      enableKeywords: true,
+      enableTables: true,
+      enableColumns: true,
+    },
   }),
 ];
 
