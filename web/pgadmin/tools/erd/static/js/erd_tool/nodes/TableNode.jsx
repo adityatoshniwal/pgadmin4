@@ -263,10 +263,21 @@ const StyledDiv = styled('div')(({theme})=>({
         padding: '0.125rem 0.25rem',
         wordBreak: 'break-all',
       },
+
+      '&:last-child': {
+        borderBottom: 'none',
+      },
     },
   },
   '&.TableNode-tableNodeSelected': {
-    borderColor: theme.palette.primary.main,
+    '& .TableNode-tableToolbar': {
+      borderColor: theme.palette.primary.main,
+    },
+    '& .TableNode-tableContent': {
+      borderLeftColor: theme.palette.primary.main,
+      borderRightColor: theme.palette.primary.main,
+      borderBottomColor: theme.palette.primary.main,
+    },
   },
 }));
 

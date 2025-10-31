@@ -90,6 +90,9 @@ const StyledBox = styled(Box)(({theme})=>({
     width: '100%',
     flexGrow: 1,
     minHeight: 0,
+    '&:focus-visible': {
+      outline: 'none',
+    },
     '& .ERDTool-diagramCanvas': {
       width: '100%',
       height: '100%',
@@ -180,7 +183,7 @@ export default class ERDTool extends React.Component {
     _.bindAll(this, ['onLoadDiagram', 'onSaveDiagram', 'onSQLClick',
       'onImageClick', 'onAddNewNode', 'onEditTable', 'onCloneNode', 'onDeleteNode', 'onNoteClick',
       'onNoteClose', 'onOneToOneClick', 'onOneToManyClick', 'onManyToManyClick', 'onAutoDistribute', 'onDetailsToggle',
-      'onChangeColors', 'onDropNode', 'onNotationChange', 'closePanel'
+      'onChangeColors', 'onDropNode', 'onNotationChange', 'closePanel', 'updateCanvasBounds'
     ]);
 
     this.diagram.zoomToFit = this.diagram.zoomToFit.bind(this.diagram);
@@ -199,6 +202,7 @@ export default class ERDTool extends React.Component {
         let { gridSize } = this.diagram.getModel().getOptions();
         let bgSize = gridSize*event.zoom/100;
         this.realignGrid({backgroundSize: `${bgSize*3}px ${bgSize*3}px`});
+        this.updateCanvasBounds();
       },
       'nodesSelectionChanged': ()=>{
         let singleNodeSelected = false;
@@ -227,10 +231,12 @@ export default class ERDTool extends React.Component {
       'linksUpdated': () => {
         this.setState({dirty: true});
         this.eventBus.fireEvent(ERD_EVENTS.DIRTY, true, this.serializeFile(), this.state.current_file);
+        this.updateCanvasBounds();
       },
       'nodesUpdated': ()=>{
         this.setState({dirty: true});
         this.eventBus.fireEvent(ERD_EVENTS.DIRTY, true, this.serializeFile(), this.state.current_file);
+        this.updateCanvasBounds();
       },
       'showNote': (event)=>{
         this.showNote(event.node);
@@ -243,6 +249,77 @@ export default class ERDTool extends React.Component {
       this.diagram.registerModelEvent(eventName, diagramEvents[eventName]);
     });
   }
+
+  updateCanvasBounds() {
+    const zoomLevel = this.diagram.getModel().getZoomLevel()/100;
+    const margin = 150*zoomLevel;
+    let nodesRect = this.diagram.getEngine().getBoundingNodesRect(this.diagram.getModel().getNodes());
+    let linksRect = this.diagram.getBoundingLinksRect();
+
+    // Check what is to the most top left - links or nodes?
+    let topLeftXY = {
+      x: nodesRect.getTopLeft().x,
+      y: nodesRect.getTopLeft().y
+    };
+    if(topLeftXY.x > linksRect.TL.x) {
+      topLeftXY.x = linksRect.TL.x;
+    }
+    if(topLeftXY.y > linksRect.TL.y) {
+      topLeftXY.y = linksRect.TL.y;
+    }
+    topLeftXY.x -= margin;
+    topLeftXY.y -= margin;
+
+    let bottomRightXY = {
+      x: nodesRect.getBottomRight().x,
+      y: nodesRect.getBottomRight().y
+    };
+    if(bottomRightXY.x < linksRect.BR.x) {
+      bottomRightXY.x = linksRect.BR.x;
+    }
+    if(bottomRightXY.y < linksRect.BR.y) {
+      bottomRightXY.y = linksRect.BR.y;
+    }
+    bottomRightXY.x += margin;
+    bottomRightXY.y += margin;
+
+    let canvasRect = this.canvasEle.getBoundingClientRect();
+    let canvasTopLeftOnScreen = {
+      x: canvasRect.left,
+      y: canvasRect.top
+    };
+    let nodeLayerTopLeftPoint = {
+      x: canvasTopLeftOnScreen.x + this.diagram.getModel().getOffsetX(),
+      y: canvasTopLeftOnScreen.y + this.diagram.getModel().getOffsetY()
+    };
+    let nodesRectTopLeftPoint = {
+      x: nodeLayerTopLeftPoint.x + topLeftXY.x,
+      y: nodeLayerTopLeftPoint.y + topLeftXY.y
+    };
+
+    let { gridSize } = this.diagram.getModel().getOptions();
+    let bgSize = gridSize*zoomLevel;
+    this.realignGrid({backgroundPosition: '0px 0px'});
+
+    this.canvasEle.childNodes.forEach((ele)=>{
+      // ele.style.transform = `translate(${nodeLayerTopLeftPoint.x - nodesRectTopLeftPoint.x}px, ${nodeLayerTopLeftPoint.y - nodesRectTopLeftPoint.y}px) scale(1.0)`;
+      // ele.style.transform = `translate(${nodeLayerTopLeftPoint.x - nodesRectTopLeftPoint.x}px, ${nodeLayerTopLeftPoint.y - nodesRectTopLeftPoint.y}px) scale(${zoomLevel})`;
+    });
+    // this.canvasEle.backgroundPosition = `${topLeftXY.x}px ${topLeftXY.y}px`;
+
+    // Capture the links beyond the nodes as well.
+    const linkOutsideWidth = linksRect.BR.x - nodesRect.getBottomRight().x;
+    const linkOutsideHeight = linksRect.BR.y - nodesRect.getBottomRight().y;
+
+    this.setState({
+      canvasBounds: {
+        width: (bottomRightXY.x - topLeftXY.x)*zoomLevel,
+        height: (bottomRightXY.y - topLeftXY.y)*zoomLevel,
+      }
+    });
+    this.diagram.repaint();
+  }
+
 
   registerEvents() {
     this.eventBus.registerListener(ERD_EVENTS.LOAD_DIAGRAM, this.onLoadDiagram);
@@ -1020,13 +1097,20 @@ export default class ERDTool extends React.Component {
         />
         <FloatingNote open={this.state.note_open} onClose={this.onNoteClose}
           anchorEl={this.noteRefEle} noteNode={this.state.note_node} appendTo={this.diagramContainerRef.current} rows={8}/>
-        <div className='ERDTool-diagramContainer' data-test="diagram-container" ref={this.diagramContainerRef} onDrop={this.onDropNode} onDragOver={e => {e.preventDefault();}} tabIndex={0}>
-          <Loader message={this.state.loading_msg} autoEllipsis={true}/>
-          <ERDCanvasSettings.Provider value={{
-            cardinality_notation: this.state.cardinality_notation
-          }}>
-            {!this.props.isTest && <CanvasWidget className='ERDTool-diagramCanvas' ref={(ele)=>{this.canvasEle = ele?.ref?.current;}} engine={this.diagram.getEngine()} />}
-          </ERDCanvasSettings.Provider>
+        <div className='ERDTool-diagramScrollContainer' style={{ width: '100%', height: '100%', overflow: 'auto' }}>
+          <div className='ERDTool-diagramContainer' data-test="diagram-container" ref={this.diagramContainerRef} onDrop={this.onDropNode} onDragOver={e => {e.preventDefault();}} tabIndex={0}
+            style={{
+              width: this.state.canvasBounds?.width ?? '100%',
+              height: this.state.canvasBounds?.height ?? '100%',
+            }}
+          >
+            <Loader message={this.state.loading_msg} autoEllipsis={true}/>
+            <ERDCanvasSettings.Provider value={{
+              cardinality_notation: this.state.cardinality_notation
+            }}>
+              {!this.props.isTest && <CanvasWidget className='ERDTool-diagramCanvas' ref={(ele)=>{this.canvasEle = ele?.ref?.current;}} engine={this.diagram.getEngine()} />}
+            </ERDCanvasSettings.Provider>
+          </div>
         </div>
       </StyledBox>
     );

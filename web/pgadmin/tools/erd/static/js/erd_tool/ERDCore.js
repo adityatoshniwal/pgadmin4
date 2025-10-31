@@ -44,7 +44,7 @@ export default class ERDCore {
   initializeEngine() {
     this.engine = this.createEngine({
       registerDefaultDeleteItemsAction: false,
-      registerDefaultZoomCanvasAction: false,
+      registerDefaultZoomCanvasAction: true,
     });
     this.dagre_engine = new DagreEngine({
       graph: {
